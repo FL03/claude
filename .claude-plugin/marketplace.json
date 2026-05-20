@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "fl03",
+  "description": "FL03-authored plugins and skills for Claude Code — covering Rust, WebAssembly, quantitative finance, Polymarket trading, workflow orchestration, and the Shepherd sprint-conductor framework.",
+  "owner": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "skills": [
+    {
+      
+    }
+  ],
+  "version": "5.0.4"
+}
