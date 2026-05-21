@@ -1,0 +1,21 @@
+{
+  "name": "typing",
+  "version": "5.0.4",
+  "description": "Language-agnostic advanced type system knowledge. Enables agents to reason about advanced typespaces including dependent types, GADTs, type-level programming, and type-driven design across Rust, TypeScript, Haskell, and other typed languages.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "types",
+    "type-theory",
+    "rust",
+    "typescript",
+    "haskell",
+    "dependent-types"
+  ]
+}

@@ -10,7 +10,7 @@ description: >
   management, release process, CI/CD workflows, Rust workspace crate scaffolding,
   and the sprint/phase/plan structure (dev.N branches, version-level plans, sprint plans
   with the 5-section structure).
-version: 1.1.0
+version: 5.0.4
 ---
 
 # Workflow — Development Lifecycle & Release Management

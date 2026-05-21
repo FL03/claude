@@ -1,0 +1,21 @@
+{
+  "name": "finance",
+  "version": "5.0.4",
+  "description": "Research-grade quantitative finance. PhD-level mathematical toolkit covering stochastic calculus, derivative pricing, risk metrics, portfolio theory, numerical methods, and applied model library (Black-Scholes, Heston, factor models, Monte Carlo).",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "finance",
+    "quant",
+    "stochastic-calculus",
+    "options",
+    "risk",
+    "monte-carlo"
+  ]
+}

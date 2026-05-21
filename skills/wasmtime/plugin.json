@@ -1,0 +1,21 @@
+{
+  "name": "wasmtime",
+  "version": "5.0.4",
+  "description": "wasmtime host embedding reference for Rust. Covers instantiating and invoking WASM components at runtime, Store/Engine/Linker lifecycle, WASI integration, component model ABI versioning, and hot-swap patterns.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "wasmtime",
+    "wasm",
+    "rust",
+    "component-model",
+    "wasi",
+    "embedding"
+  ]
+}

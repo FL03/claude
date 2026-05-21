@@ -1,7 +1,7 @@
 ---
 name: Rust
 slug: rust
-version: 4.1.0
+version: 5.0.4
 description: |
   Make any agent, session, or cron fluent in idiomatic Rust. Covers ownership, borrowing,
   lifetimes, error handling, async (tokio), traits, generics, trait objects, cargo + feature

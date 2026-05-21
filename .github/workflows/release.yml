@@ -169,20 +169,23 @@ jobs:
             git checkout -b "$PATCH" main
           fi
 
-          # Bump the version across shepherd's source-of-truth files (per CLAUDE.md
-          # §Versioning): plugin + marketplace manifests, both SKILL.md frontmatters,
-          # and the README current-version line.
+          # Bump version across all source-of-truth files:
+          # plugin + marketplace manifests, all skill plugin.json files,
+          # SKILL.md frontmatters that carry a version key, and README.
           jq --arg v "${NEXT}" '.version = $v' .claude-plugin/plugin.json \
             > .claude-plugin/plugin.json.tmp \
             && mv .claude-plugin/plugin.json.tmp .claude-plugin/plugin.json
-          jq --arg v "${NEXT}" '.version = $v | .plugins[0].version = $v' \
+          jq --arg v "${NEXT}" '.version = $v | (.plugins[].version) = $v' \
             .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp \
             && mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-          for f in skills/shepherd/SKILL.md skills/context/SKILL.md; do
-            if [ -f "$f" ]; then
-              sed -i.bak -E "s/^version: ${CURRENT}\$/version: ${NEXT}/" "$f"
-              rm -f "${f}.bak"
-            fi
+          for f in skills/*/plugin.json; do
+            [ -f "$f" ] || continue
+            jq --arg v "${NEXT}" '.version = $v' "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+          done
+          for f in skills/*/SKILL.md; do
+            [ -f "$f" ] || continue
+            sed -i.bak -E "s/^version: ${CURRENT}$/version: ${NEXT}/" "$f"
+            rm -f "${f}.bak"
           done
           if [ -f README.md ]; then
             sed -i.bak -E "s/Current version: \*\*${CURRENT}\*\*/Current version: **${NEXT}**/" README.md

@@ -1,0 +1,20 @@
+{
+  "name": "trader",
+  "version": "5.0.4",
+  "description": "Generalized autonomous trading agent protocol. Loads the agent contract, autonomy grant, and Axiom MCP platform tools. Exchange-specific strategy (e.g., Polymarket) loaded separately.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "trading",
+    "autonomous-agent",
+    "axiom",
+    "polymarket",
+    "futures"
+  ]
+}

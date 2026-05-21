@@ -1,0 +1,22 @@
+{
+  "name": "rust",
+  "version": "5.0.4",
+  "description": "Make any agent, session, or cron fluent in idiomatic Rust. Covers ownership, borrowing, lifetimes, error handling, async (tokio), traits, generics, macros (declarative + procedural), the no_std/alloc/std tier system, cargo ecosystem, and WASM toolchain integration.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "rust",
+    "systems",
+    "async",
+    "wasm",
+    "no-std",
+    "cargo",
+    "macros"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "webassembly",
+  "version": "5.0.4",
+  "description": "Language-agnostic WebAssembly guidance. WIT syntax, component model semantics, WASI capabilities, and binary format. Covers wasm-components, WIT interfaces/worlds, WASI p2, and the four pillars: isolation, portability, hot-swap, and composability.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "webassembly",
+    "wasm",
+    "wit",
+    "wasi",
+    "component-model",
+    "wasm-components"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "workflow",
+  "version": "5.0.4",
+  "description": "Development lifecycle and release management. Branching conventions (v{x}.{y}.{z}-dev.{i}), GitHub issue/PR/milestone management, CI/CD workflow patterns, Rust workspace crate scaffolding, and sprint/phase plan structure.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "workflow",
+    "git",
+    "github",
+    "ci-cd",
+    "release",
+    "rust",
+    "cargo"
+  ]
+}

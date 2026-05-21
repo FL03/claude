@@ -1,0 +1,20 @@
+{
+  "name": "polymarket",
+  "version": "5.0.4",
+  "description": "Polymarket exchange reference. Protocol mechanics, CLOB/Gamma/Data APIs, L1 vs L2 authentication, relayer architecture, market types, resolution, fees, and structural overview. Exchange-specific companion to the trader skill.",
+  "author": {
+    "name": "FL03",
+    "email": "j3mccain@gmail.com",
+    "url": "https://github.com/FL03"
+  },
+  "homepage": "https://github.com/FL03/claude",
+  "repository": "https://github.com/FL03/claude",
+  "license": "Apache-2.0",
+  "keywords": [
+    "polymarket",
+    "prediction-markets",
+    "trading",
+    "polygon",
+    "clob"
+  ]
+}
