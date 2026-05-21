@@ -93,8 +93,8 @@
     },
     {
       "name": "wasmtime",
-      "version": "5.0.4",
-      "description": "wasmtime host embedding reference for Rust. Instantiating WASM components, Store/Engine/Linker lifecycle, WASI integration, and hot-swap patterns.",
+      "version": "5.1.0",
+      "description": "Rust-side host embedding of wasmtime. Engine/Store/Linker/Component lifecycle, bindgen! macro for WIT, WASI capability grants, &self ergonomics via Arc<Mutex<...>>, hot-swap, error/trap handling, AOT precompile, async support, and debug surfaces. Context7-grounded against /bytecodealliance/wasmtime.",
       "author": {
         "name": "FL03"
       },
