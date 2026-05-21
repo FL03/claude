@@ -28,17 +28,17 @@ Signature style in preview1:
 // (import "wasi_snapshot_preview1" "fd_write" (func ...))
 ```
 
-### WASI preview2 (current)
+### WASI preview2 / 0.2 (current stable)
 
 - Introduced 2023, stabilized 2024
 - Built entirely on the component model and WIT
-- Interface: a set of WIT interfaces and worlds (`wasi:io`, `wasi:filesystem`, `wasi:clocks`, `wasi:random`, etc.)
-- Types are WIT types: `result<T, E>`, `option<T>`, `record`, `resource` handles — not raw integers
+- Interface: a set of WIT interfaces and worlds (`wasi:io`, `wasi:filesystem`, `wasi:clocks`, `wasi:random`, `wasi:sockets`, `wasi:cli`, `wasi:http`)
+- Types are WIT types: `result<T, E>`, `option<T>`, `record`, `resource` handles (`own<T>`/`borrow<T>`) — not raw integers
 - The module must itself be a **component** (see `wasm-components.md`) to use preview2
-- Target: `wasm32-wasip2` (in Rust toolchains, stabilized in Rust 1.82)
-- Status: Active. This is where new capabilities go.
+- Target: `wasm32-wasip2` (Tier 2 in Rust; stabilized in Rust 1.82)
+- Status: Stable. WASI 0.2 is the current release.
 
-Key interface packages in preview2:
+The seven core APIs of WASI 0.2, all currently at Phase 3:
 
 | Package | What it provides |
 |---------|-----------------|
@@ -51,32 +51,42 @@ Key interface packages in preview2:
 | `wasi:random/random` | CSPRNG |
 | `wasi:random/insecure` | Non-cryptographic random |
 | `wasi:sockets/tcp` | TCP sockets |
+| `wasi:sockets/udp` | UDP datagrams |
+| `wasi:sockets/ip-name-lookup` | DNS resolution |
 | `wasi:cli/environment` | Environment variables |
 | `wasi:cli/exit` | Process exit |
 | `wasi:cli/stdin`/`stdout`/`stderr` | Standard streams |
+| `wasi:http/types`, `wasi:http/outgoing-handler`, `wasi:http/incoming-handler` | HTTP client + server (proxy world) |
 
-## The `wasm32-wasip2` Target
+Other proposals are still working through earlier phases (Phase 2: `wasi:nn`, clocks timezone, gfx; Phase 1: `wasi:crypto`, `wasi:logging`, `wasi:keyvalue`, `wasi:sql`, `wasi:url`, etc.). Check `https://wasi.dev/interfaces` for the current phase table before depending on anything outside the 0.2 core.
 
-This is the Rust compilation target for producing preview2 WASM components. It is distinct from:
+### WASI preview3 / 0.3 (in development)
 
-- `wasm32-unknown-unknown` — no WASI, used for browser/wasm-bindgen scenarios
-- `wasm32-wasi` — preview1, produces a raw module, NOT a component
-- `wasm32-wasip1` — alias for `wasm32-wasi` in newer toolchains
-- `wasm32-wasip2` — preview2, produces a component
+- Iterates on the same 0.2 core APIs (draft versions live in their respective repos)
+- Headline addition: native **async** support via `future<T>` / `stream<T>` at the WIT level — operations that block today become first-class futures
+- Target: `wasm32-wasip3` (Tier 3 in Rust)
+- Status: Drafts; do not depend on the surface stabilizing yet. Production code should still target `wasm32-wasip2` and WASI 0.2.
 
-Modern WASM components target `wasm32-wasip2`. The compiled artifact is a WASM component, not a raw module, and a component-model-aware runtime (e.g. wasmtime) loads it via the component model API.
+## Rust WASM Targets — the Current Map
 
-To add the target:
+| Target | Tier | What it produces | Use for |
+|---|---|---|---|
+| `wasm32-unknown-unknown` | 2 | Raw module, no WASI | Browser interop via `wasm-bindgen` |
+| `wasm32-wasip1` | 2 | Raw module, preview1 WASI imports | Legacy WASI, adapter-bridged components |
+| `wasm32-wasip2` | 2 | **Component**, preview2 WASI | Server-side component model — the default |
+| `wasm32-wasip3` | 3 | **Component**, preview3 WASI (async) | Experimental — WASI 0.3 drafts |
+
+The original `wasm32-wasi` target was **renamed** to `wasm32-wasip1`; the old name is deprecated. `wasm32-wasip2` produces a **component**, not a raw module — its binary has component magic, and a component-model-aware runtime (e.g. wasmtime) loads it via the component API.
+
+To add the target and build:
 ```
 rustup target add wasm32-wasip2
-```
-
-Build:
-```
 cargo build --target wasm32-wasip2 -p my-component
 ```
 
-The output is in `target/wasm32-wasip2/debug/my_component.wasm` (or `release/`). This file IS a component — it has the component binary magic (`\0asm\x0a...` with component sections) rather than the raw module magic.
+The output `target/wasm32-wasip2/debug/my_component.wasm` carries the component binary magic (`\0asm\x0a...` with component sections) rather than the raw module magic. Inspect with `wasm-tools component wit` to confirm.
+
+For browser/JS interop, target `wasm32-unknown-unknown` and use `wasm-bindgen` — that path produces raw modules, not components, and is mutually exclusive with `cargo-component`.
 
 ## Capability Model in Practice
 

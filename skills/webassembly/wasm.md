@@ -134,15 +134,17 @@ For wasmtime specifically: the `Linker` controls what is available to the guest.
 
 The main server-side runtimes:
 
-**wasmtime** (Bytecode Alliance, Rust) — Production-grade, actively developed. Full component model support. Default for server-side and embedded scenarios in the Rust ecosystem.
+**wasmtime** (Bytecode Alliance, Rust) — Production-grade, actively developed. Full component model support. Default for server-side and embedded scenarios in the Rust ecosystem. Rust host-embedding details live in the `wasmtime` sibling skill.
 
-**wasmer** — Alternative runtime, multiple backends (LLVM, Cranelift, Singlepass). Mature, good ecosystem.
+**wasmer** — Alternative runtime, multiple backends (LLVM, Cranelift, Singlepass). Mature, good ecosystem. Component-model support is more recent than wasmtime's.
 
-**v8 / SpiderMonkey** — Browser engines. Full WASM support. Not component-model-aware without additional tooling.
+**v8 / SpiderMonkey** — Browser engines. Full core WASM support. Not component-model-aware natively; tools like `jco` transpile components to JS+module so browsers can run them.
 
 **wasm3** — Interpreter, extremely small footprint (~64 KiB). No JIT. Good for embedded/microcontrollers where binary size or startup time matters more than throughput.
 
 **WAMR** (WebAssembly Micro Runtime) — Another embedded-focused runtime from Intel/Bytecode Alliance.
+
+**jco** — Not a runtime per se but a transpiler: takes a `.wasm` component and produces a JS ES module that runs anywhere V8/SpiderMonkey runs.
 
 For component-model server scenarios, wasmtime is the canonical choice — it has the most mature component-model API surface.
 
