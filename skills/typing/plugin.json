@@ -1,7 +1,7 @@
 {
   "name": "typing",
-  "version": "5.0.4",
-  "description": "Language-agnostic advanced type system knowledge. Enables agents to reason about advanced typespaces including dependent types, GADTs, type-level programming, and type-driven design across Rust, TypeScript, Haskell, and other typed languages.",
+  "version": "5.1.0",
+  "description": "Language-agnostic advanced type-system knowledge. Covers parametric/ad-hoc/subtype/row polymorphism, variance, kinds, higher-kinded types, type classes vs traits vs interfaces, GADTs, type-level programming, dependent types, and refinement types across Haskell, Idris/Agda/Lean, OCaml, Scala, TypeScript, F*, and Liquid Haskell. Ships companion files dependent-types.md (Pi/Sigma types, indexed families, length-indexed vectors, refinement + branded types) and type-level-programming.md (GADTs, type families, HKTs, phantom types, type-level naturals, row polymorphism, TypeScript conditional/mapped/template-literal types). Rust-specific surface (impl Trait, GATs, PhantomData variance, type-state, sealed traits) lives in the rust skill's typespace.md.",
   "author": {
     "name": "FL03",
     "email": "j3mccain@gmail.com",
@@ -13,9 +13,22 @@
   "keywords": [
     "types",
     "type-theory",
-    "rust",
-    "typescript",
+    "type-systems",
+    "dependent-types",
+    "refinement-types",
+    "gadts",
+    "higher-kinded-types",
+    "type-level-programming",
+    "variance",
+    "row-polymorphism",
     "haskell",
-    "dependent-types"
+    "idris",
+    "agda",
+    "lean",
+    "ocaml",
+    "scala",
+    "typescript",
+    "fstar",
+    "liquid-haskell"
   ]
 }

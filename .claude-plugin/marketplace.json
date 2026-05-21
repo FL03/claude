@@ -77,8 +77,8 @@
     },
     {
       "name": "typing",
-      "version": "5.0.4",
-      "description": "Language-agnostic advanced type system knowledge. Dependent types, GADTs, type-level programming, and type-driven design across typed languages.",
+      "version": "5.1.0",
+      "description": "Language-agnostic advanced type-system knowledge. Covers parametric/ad-hoc/subtype/row polymorphism, variance, kinds, HKTs, type classes vs traits, GADTs, type-level programming, dependent and refinement types across Haskell, Idris/Agda/Lean, OCaml, Scala, TypeScript, F*, and Liquid Haskell. Ships dependent-types.md and type-level-programming.md companion references.",
       "author": {
         "name": "FL03"
       },
