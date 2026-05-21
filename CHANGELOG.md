@@ -21,6 +21,14 @@ All notable changes to this skill marketplace are documented here. Each skill al
 - **`plugin.json`** — Bumped to 5.1.0 with an expanded description and richer keyword set (`black-scholes`, `heston`, `var`, `portfolio-theory`, `backtesting`).
 - Bumped the marketplace entry to 5.1.0 with the refreshed description.
 
+### `trader` skill — sweep (5.0.4 → 5.1.0)
+
+- **`SKILL.md`** — Tightened the 9-gate contract: every gate is now a precise boolean with explicit pass/fail criteria (Gate 2 net-of-fee EV with the `EV_net = p_true − entry − fee × (1 − entry)` form, Gate 4 half-Kelly $1 floor + negative-Kelly trap, Gate 5 pairwise `|ρ| ≤ 0.5`, Gate 8 ±2¢ depth + 30s staleness window). Rewrote the 7-step cycle with explicit read-only (1-2) vs write (3-7) phase separation and an atomicity note covering steps 4-5. Bumped frontmatter to 5.1.0; added cross-skill load pointer to `@finance/QUANT.md` for Kelly and EV depth.
+- **`axiom.md`** — Rebuilt against the live `axiom-mcp` server source (`~/src/fl03/axiom/bin/mcp/src/impls/impl_mcp_tools.rs`). Added previously undocumented tools: `axiom_status`, `axiom_cancel_orders`, `axiom_redeem_slug`, `axiom_scan`, `axiom_watchlist`, `market_midpoint`, `market_price`, `market_candles`, and the kill-switch surface (`kill_switch_get`, `kill_engage`, `kill_disengage`, `kill_switch_set`). Fixed `axiom_buy` — added the required `side: "yes"|"no"` parameter that the wire schema enforces, plus the FAK-default note. Documented the `mcp__axiom__<tool>` Claude Code naming convention. Clarified that `market_price`/`market_candles` are BTC-only via datasync and are NOT the settlement oracle (`chainlink_btc_price` remains the Gate 3 source for BTC strikes).
+- **`jailbreak.md`** — Expanded the standing-authorization list to cover the newly documented tools (status, cancel_orders, redeem_slug, scan, watchlist, kill_engage/disengage). Restricted `kill_switch_set()` with custom levels to explicit per-session operator approval. Noted the `mcp__axiom__` namespace.
+- **`plugin.json`** — Bumped to 5.1.0; richer description; added `kelly` and `9-gate-contract` keywords; dropped the speculative `futures` keyword (Axiom is Polymarket-only today).
+- Bumped the marketplace entry to 5.1.0 with the refreshed description.
+
 ### Infrastructure
 
 - Spec at `docs/superpowers/specs/2026-05-20-rust-skill-refactor-design.md`.
@@ -51,7 +59,7 @@ Authoritative version is each skill's `plugin.json`. Snapshot:
 | finance | 5.1.0 | Swept: trader-policy drawdown rules removed from QUANT.md; Heston pricing expanded with full characteristic function + calibration; American-options section added; SKILL.md description sharpened with concrete triggers and canonical references |
 | polymarket | 5.0.4 | Awaiting v5.1.0 sweep |
 | rust | 5.1.0 | Restructured: cargo.md + rustc.md split out; SKILL.md trimmed 1430→1050; orphan WASM files removed |
-| trader | 5.0.4 | Awaiting v5.1.0 sweep |
+| trader | 5.1.0 | Swept: 9-gate contract tightened to precise booleans; axiom.md rebuilt against the live axiom-mcp source (added scan/watchlist/redeem_slug/status/market_midpoint/price/candles + full kill-switch surface; fixed axiom_buy `side` parameter); jailbreak.md expanded for new authorized tools |
 | typing | 5.0.4 | Awaiting v5.1.0 sweep |
 | wasmtime | 5.0.4 | Awaiting v5.1.0 sweep |
 | webassembly | 5.0.4 | Awaiting v5.1.0 sweep |

@@ -61,8 +61,8 @@
     },
     {
       "name": "trader",
-      "version": "5.0.4",
-      "description": "Generalized autonomous trading agent protocol with 9-gate safety contract and Axiom MCP platform integration.",
+      "version": "5.1.0",
+      "description": "Generalized autonomous trading agent. 9-gate safety contract, 7-step cycle, drawdown rules, operator autonomy grant, and full Axiom MCP tool reference (verified against the axiom-mcp server source). Exchange-agnostic — pair with @polymarket for opportunity playbooks.",
       "author": {
         "name": "FL03"
       },
