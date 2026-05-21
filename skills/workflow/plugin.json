@@ -1,7 +1,7 @@
 {
   "name": "workflow",
-  "version": "5.0.4",
-  "description": "Development lifecycle and release management. Branching conventions (v{x}.{y}.{z}-dev.{i}), GitHub issue/PR/milestone management, CI/CD workflow patterns, Rust workspace crate scaffolding, and sprint/phase plan structure.",
+  "version": "5.1.0",
+  "description": "Development lifecycle and release management. v{x}.{y}.{z}-dev.{i} branching with explicit rebase/squash decision tree, the automated patch-release pipeline (release.yml: tag, release, next-patch cut, mod-10 cascade version bump, dev.0, orphan sweep, milestone roll), GH issue/PR/milestone conventions, Rust workspace crate scaffolding policy (cross-refs rust/cargo.md for cargo mechanics), and the version/sprint plan-file structure.",
   "author": {
     "name": "FL03",
     "email": "j3mccain@gmail.com",

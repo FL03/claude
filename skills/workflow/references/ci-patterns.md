@@ -1,7 +1,20 @@
-# CI/CD Workflow Patterns
+---
+type: reference
+parent: workflow
+---
 
-Reference patterns derived from the production pzzld-rs CI/CD implementation.
-Axiom workflows must follow these patterns exactly.
+# CI/CD Workflow Patterns (Rust Workspace Projects)
+
+Reference templates for Rust workspace CI. Derived from the production
+pzzld-rs implementation; the axiom family of workspaces follows these
+patterns. **Drop-in starting point — adapt names, matrices, and registry
+secrets to the project.**
+
+This file is the template library. The skill's SKILL.md §V lists the
+workflow set and the standing patterns; this file ships the YAML.
+
+> Note: this marketplace itself uses only `release.yml` (see SKILL.md §IV) —
+> it has no compilable code. The patterns below are for Rust workspaces.
 
 ## Standard Workflow Header
 
@@ -310,13 +323,12 @@ jobs:
       - run: echo "PR #${{ github.event.pull_request.number }} closed"
 ```
 
-## Known Issues in Current Axiom Workflows
+## Cross-references
 
-These must be fixed as part of the quality pass:
-
-1. **rust.yml has reversed target/toolchain variables** — matrix assignment is swapped
-2. **No PR triggers on clippy** — clippy only runs on tags, not PRs
-3. **No cargo-build.yml** — no WASM target builds
-4. **No cargo-publish.yml** — no automated crates.io publishing
-5. **No release.yml** — no automated release notes
-6. **Docker not triggered on push** — only manual dispatch
+- `SKILL.md §V` — the recommended workflow set and standing patterns.
+- `rust/cargo.md §1` — `cargo build`, `cargo test`, `cargo clippy`, `cargo publish`
+  command flags used by the matrices above.
+- `rust/cargo.md §4` — feature gates and the `no_std`/`alloc`/`std` tier
+  system referenced by the nightly test matrix.
+- `rust/cargo.md §6` — registries and publishing (token setup, yanking,
+  semver discipline) for the `cargo-publish.yml` flow.
