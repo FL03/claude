@@ -13,8 +13,8 @@
   "plugins": [
     {
       "name": "finance",
-      "version": "5.0.4",
-      "description": "Research-grade quantitative finance. PhD-level toolkit covering stochastic calculus, derivative pricing, risk metrics, portfolio theory, numerical methods, and applied model library.",
+      "version": "5.1.0",
+      "description": "Research-grade quantitative finance. PhD-level toolkit covering stochastic calculus, derivative pricing (Black-Scholes + Greeks, Heston, Merton jump-diffusion, American options), risk metrics (VaR/CVaR/Sharpe/Sortino/Calmar), portfolio theory, term-structure models, Monte Carlo with variance reduction, and backtesting. Grounded against Hull / Bjork / Wilmott / Glasserman.",
       "author": {
         "name": "FL03"
       },

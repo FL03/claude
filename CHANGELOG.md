@@ -13,9 +13,13 @@ All notable changes to this skill marketplace are documented here. Each skill al
 - Refreshed the `Reference Files` index to add `cargo.md`/`rustc.md` and drop the deleted WASM files.
 - Bumped frontmatter, `plugin.json`, and the marketplace entry to 5.1.0.
 
-### Marketplace-wide sweep
+### `finance` skill — sweep (5.0.4 → 5.1.0)
 
-[Pending — filled in after the parallel sibling-skill sweep completes.]
+- **`SKILL.md`** — Added `version: 5.1.0` to frontmatter; rewrote the description with concrete trigger keywords (Greeks, IV, Itô/SDEs, VaR/CVaR, Sharpe/Sortino/Calmar, Kelly, Markowitz, CAPM/Fama-French/APT, Vasicek/CIR/Nelson-Siegel, Monte Carlo, PDE, backtesting); collapsed the duplicated "Activation" block into the module table; added a `Canonical references` table pointing at Hull / Bjork / Shreve / Wilmott / Glasserman / Grinold-Kahn / Cochrane.
+- **`QUANT.md`** — Removed the trader-policy "Drawdown rules" block (size-reduction / lockout cadence); that content lives in `@trader`. Replaced with mathematical content: Ulcer Index, Martin ratio, and a note on time-under-water as a complementary drawdown shape metric.
+- **`MODELS.md`** — Added explicit put-side Theta and put-side Rho formulas; added a second-order Greeks pointer (Vanna, Volga, Charm); expanded Heston pricing with full characteristic-function form (C_j, D_j, d_j, g_j with the two (u_j, b_j) pairs), a calibration sketch, and a warning about the "Little Heston Trap" branch-cut formulation. Added a new "American Options & Early Exercise" subsection covering the free-boundary intuition, American-call-equals-European on non-dividend stocks, the optimal-exercise boundary for puts, and the three standard numerical routes (CRR binomial, Longstaff-Schwartz LSM, PSOR).
+- **`plugin.json`** — Bumped to 5.1.0 with an expanded description and richer keyword set (`black-scholes`, `heston`, `var`, `portfolio-theory`, `backtesting`).
+- Bumped the marketplace entry to 5.1.0 with the refreshed description.
 
 ### Infrastructure
 
@@ -44,7 +48,7 @@ Authoritative version is each skill's `plugin.json`. Snapshot:
 
 | Skill | Version | Notes |
 |---|---|---|
-| finance | 5.0.4 | Awaiting v5.1.0 sweep |
+| finance | 5.1.0 | Swept: trader-policy drawdown rules removed from QUANT.md; Heston pricing expanded with full characteristic function + calibration; American-options section added; SKILL.md description sharpened with concrete triggers and canonical references |
 | polymarket | 5.0.4 | Awaiting v5.1.0 sweep |
 | rust | 5.1.0 | Restructured: cargo.md + rustc.md split out; SKILL.md trimmed 1430→1050; orphan WASM files removed |
 | trader | 5.0.4 | Awaiting v5.1.0 sweep |
