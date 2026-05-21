@@ -1,7 +1,7 @@
 {
   "name": "rust",
-  "version": "5.0.4",
-  "description": "Make any agent, session, or cron fluent in idiomatic Rust. Covers ownership, borrowing, lifetimes, error handling, async (tokio), traits, generics, macros (declarative + procedural), the no_std/alloc/std tier system, cargo ecosystem, and WASM toolchain integration.",
+  "version": "5.1.0",
+  "description": "Make any agent fluent in idiomatic Rust. Covers ownership, borrowing, lifetimes, async, traits, generics, the no_std/alloc/std tier system, and macros (declarative + procedural with syn/quote/proc-macro2). Ships companion files cargo.md (full cargo surface — commands, manifest, workspaces, features, profiles, config.toml, subcommands, sccache, parallel-agent workflows, JSON output) and rustc.md (compiler knobs — codegen flags, RUSTFLAGS, targets, lints, editions, sanitizers, cfg, --print, debug flags). Both companion files are Context7-grounded against The Cargo Book and The Rustc Book.",
   "author": {
     "name": "FL03",
     "email": "j3mccain@gmail.com",
@@ -14,9 +14,9 @@
     "rust",
     "systems",
     "async",
-    "wasm",
     "no-std",
     "cargo",
+    "rustc",
     "macros"
   ]
 }

@@ -66,6 +66,13 @@ Resources are opaque handles to objects that live on one side of the boundary (h
 
 A resource handle looks like an i32 on the wire, but the component model enforces ownership: a handle can only be used by the component/host that owns it, and must be dropped explicitly.
 
+Resource handles cross in one of two modes (see `wit.md` for syntax):
+
+| Mode | Wire shape | Lifetime semantics |
+|---|---|---|
+| `own<T>` | i32 handle index | Ownership transfers; the receiver is responsible for dropping. |
+| `borrow<T>` | i32 handle index | Temporary read; lifetime bounded by the call. Caller still owns. |
+
 Resources are appropriate when:
 - The object is expensive to copy (e.g., a large ML model loaded in the host).
 - The object has an inherent identity that must be preserved across calls.
@@ -127,32 +134,32 @@ wasm-tools component wit path/to/my_component.wasm
 
 ## Host-Side Instantiation Pattern (wasmtime)
 
+The shape, in any language with a component-model embedder:
+
+1. Create the runtime / engine once.
+2. Compile (or deserialize) the component bytecode — the expensive step. Cache.
+3. Build a linker that provides every import the component declares.
+4. Create a per-instance store holding host state.
+5. Instantiate the component against the linker, producing typed bindings.
+6. Call exported functions via the bindings.
+
 ```rust
-// This is the pattern — for Rust specifics, see the rust-wasm skill.
+// Sketch — for the Rust-specific embedding (Engine/Store/Linker/Component
+// types, the bindgen! macro, WasiCtxBuilder grants, Mutex<Inner> driver
+// pattern, AOT precompilation), see the `wasmtime` sibling skill.
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Engine, Store};
 
-// 1. Create engine (reuse across instantiations)
-let engine = Engine::default();
-
-// 2. Compile component bytecode (expensive — cache this)
+let engine    = Engine::default();
 let component = Component::from_file(&engine, "my_component.wasm")?;
-
-// 3. Build linker with required imports
 let mut linker: Linker<StoreData> = Linker::new(&engine);
-// Add WASI if the component requires it, or skip for pure-compute components
-
-// 4. Create store (per-instance state)
-let mut store = Store::new(&engine, StoreData {});
-
-// 5. Instantiate (links imports, calls start function)
-let bindings = GeneratedBindings::instantiate(&mut store, &component, &linker)?;
-
-// 6. Call exported function (the exact path comes from your WIT package + interface name)
-let result = bindings.my_org_my_pkg_plugin().call_invoke(&mut store, &ctx)?;
+// Add WASI capabilities only if the component imports them.
+let mut store    = Store::new(&engine, StoreData {});
+let bindings    = GeneratedBindings::instantiate(&mut store, &component, &linker)?;
+let result      = bindings.my_org_my_pkg_plugin().call_invoke(&mut store, &ctx)?;
 ```
 
-The code-generation step (`bindgen!`) is Rust-specific — see the rust-wasm skill for `wasmtime::component::bindgen!` details.
+The code-generation step (`wasmtime::component::bindgen!`) is Rust-specific — see the `wasmtime` sibling skill for the macro configuration, the `Mutex<Inner>` driver pattern, and AOT precompilation via `Component::serialize`/`deserialize`.
 
 ## When to Use Components vs Raw Modules
 
@@ -169,4 +176,6 @@ The code-generation step (`bindgen!`) is Rust-specific — see the rust-wasm ski
 
 ## Cargo-Component Note
 
-`cargo-component` is the Rust-specific build tool that compiles a Rust crate directly to a WASM component, handling WIT binding generation and the `wasm32-wasip2` target. See the rust-wasm skill for `cargo-component` usage, `[package.metadata.component]` Cargo.toml configuration, and the generated `bindings.rs` pattern.
+`cargo-component` is the Rust-specific build tool that compiles a Rust crate directly to a WASM component, handling WIT binding generation and the `wasm32-wasip2` target. The crate's `Cargo.toml` declares its WIT package and world under `[package.metadata.component]`; the build emits a generated `bindings.rs` and a final component-format `.wasm`. See the `rust` skill's `cargo.md` for the subcommand index, the `wasmtime` skill for host-side embedding, and the `cargo-component` crate on docs.rs for the full configuration surface.
+
+`wasm-bindgen` is a different beast: it targets `wasm32-unknown-unknown` and produces a raw module with JS shim, NOT a component. Use it for browser interop; do not confuse it with component-model tooling.

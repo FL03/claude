@@ -3,76 +3,95 @@ name: workflow
 description: >
   This skill should be used when creating branches, opening PRs, managing releases,
   setting up GitHub Actions, creating milestones, linking issues, tagging versions,
-  adding new crates to the workspace, writing version/sprint plans, or when the user says
-  "create a branch", "open a PR", "tag a release", "setup CI", "add a crate", "new crate",
-  "new sprint", "write the plan", "start a new phase", "rebase and merge this sprint".
-  Covers the full development lifecycle: branching conventions, GH issue/PR/milestone
-  management, release process, CI/CD workflows, Rust workspace crate scaffolding,
-  and the sprint/phase/plan structure (dev.N branches, version-level plans, sprint plans
-  with the 5-section structure).
-version: 5.0.4
+  adding new crates to a Rust workspace, writing version/sprint plans, or when the
+  user says "create a branch", "open a PR", "tag a release", "setup CI", "add a crate",
+  "new crate", "new sprint", "write the plan", "start a new phase", "rebase and merge
+  this sprint". Covers the full development lifecycle: the `v{x}.{y}.{z}-dev.{i}`
+  branching scheme, the rebase-vs-squash decision tree, the automated patch-release
+  pipeline (.github/workflows/release.yml — tag, release, next-patch cut, version
+  bump, dev.0, orphan sweep, milestone roll), GH issue/PR/milestone conventions,
+  Rust workspace crate scaffolding policy, and the version-level / sprint-level
+  plan-file structure. Project-policy companion to the language-mastery skills;
+  cargo command semantics live in `rust/cargo.md`.
+version: 5.1.0
 ---
 
 # Workflow — Development Lifecycle & Release Management
 
 Standard operating procedures for branching, GitHub operations, CI/CD, releases,
-and Rust workspace crate scaffolding. Every agent must follow these conventions exactly.
+and Rust workspace scaffolding. This file is the primer + index; depth lives in
+the reference files at the bottom.
 
-## Branching Convention
+> **Scope note.** This skill carries *project-policy* (branch names, merge
+> strategies, plan-file structure, release pipeline behavior). Generic cargo
+> command semantics live in the `rust` skill's `cargo.md`. When in doubt:
+> conventions and branch lifecycle here, manifest/workspace mechanics there.
+
+---
+
+## I. Branching Convention
 
 ### Naming: `v{x}.{y}.{z}-dev.{i}`
 
-- `x.y.z` = semver version being developed
-- `i` = sprint/phase number (0-indexed)
-- Example: `v0.0.9-dev.0` is sprint 0 of version 0.0.9
+- `x.y.z` — semver version being developed (this is the **patch branch**).
+- `i` — sprint/phase number, 0-indexed. `dev.0` is the first sprint of a new patch.
+- Example: `v5.1.0-dev.0` is sprint 0 of patch `v5.1.0`.
 
-### Branch Lifecycle
-
-```
-1. Create:   gh pr create --base v{x}.{y}.{z} --head v{x}.{y}.{z}-dev.{i}
-2. Work:     commit to v{x}.{y}.{z}-dev.{i}
-3. Complete: rebase onto v{x}.{y}.{z}, merge via gh pr merge --rebase
-4. Next:     create v{x}.{y}.{z}-dev.{i+1} from v{x}.{y}.{z}
-```
-
-### Release Collapse
-
-When all phases complete:
+### Branch hierarchy
 
 ```
-1. Squash v{x}.{y}.{z} into default branch (main):
-   gh pr create --base main --head v{x}.{y}.{z}
-   gh pr merge --squash
-
-2. Tag the release:
-   git tag v{x}.{y}.{z}
-   git push origin v{x}.{y}.{z}
-
-3. Create GitHub release:
-   gh release create v{x}.{y}.{z} --title "v{x}.{y}.{z}" --generate-notes
-
-4. Branch cleanup is automatic (GH autodelete on merge)
+main                    ← released, tagged, immutable history (squash commits)
+└── v{x}.{y}.{z}        ← patch branch; accumulates dev.0..dev.9 via rebase
+    ├── v{x}.{y}.{z}-dev.0   ← sprint 0 (the only one open at any time)
+    ├── v{x}.{y}.{z}-dev.1   ← sprint 1 (cut from patch branch AFTER dev.0 merges)
+    └── ...                  ← up to dev.9 (the automated mod-10 cascade)
 ```
 
-### Rules
+### Merge strategy decision tree
 
-- **Prefer `gh` CLI** over raw `git` for all branch/PR operations.
-  GitHub ignores git-originated operations w.r.t. autodelete and PR lifecycle.
-  Fall back to `git` only if `gh` fails.
-- Never force-push to `main` or a version branch.
-- Each phase branch gets its own PR with a clear title: `v{x}.{y}.{z} Phase {i}: {description}`.
+| Source → Target | Strategy | Why | Approval |
+|---|---|---|---|
+| track / topic → `v{x}.{y}.{z}-dev.{i}` | `--rebase --delete-branch` | Tracks are ephemeral; keep linear sprint history | Reviewer |
+| `v{x}.{y}.{z}-dev.{i}` → `v{x}.{y}.{z}` | `--rebase` | Preserve sprint commit history as a readable tree | Operator |
+| `v{x}.{y}.{z}` → `main` | `--squash` | Releases are one commit each; **triggers `release.yml`** | Operator (explicit) |
 
-## GitHub Issue Management
+**Rules.**
 
-### Issue Lifecycle
+- Prefer `gh` CLI over raw `git` for all branch/PR operations. GitHub ignores
+  git-originated operations w.r.t. autodelete and PR lifecycle. Fall back to
+  `git` only if `gh` fails.
+- **Never force-push to `main` or to a version branch.** Both are operator-protected
+  and the release pipeline depends on linear history on `main`.
+- Don't start `dev.(N+1)` until `dev.N` is merged. Parallel phase branches hide
+  cross-cutting drift — the phase structure exists to prevent that.
+- Each sprint PR has a clear title: `feat({scope}): {description}` (the version
+  is implicit in the head branch name).
 
+### Branch lifecycle commands
+
+```bash
+# Open sprint N
+gh pr create --base "v{x}.{y}.{z}" --head "v{x}.{y}.{z}-dev.{N}" --draft
+
+# Close sprint N: rebase-merge into patch branch
+gh pr merge "v{x}.{y}.{z}-dev.{N}" --rebase --delete-branch
+
+# Open next sprint
+git checkout "v{x}.{y}.{z}"
+git pull --rebase origin "v{x}.{y}.{z}"
+git checkout -b "v{x}.{y}.{z}-dev.{N+1}"
+git push -u origin "v{x}.{y}.{z}-dev.{N+1}"
 ```
-Create:   gh issue create --title "scope(area): description" --label "type"
-Link:     Reference in PR body: "Closes #N" or "Fixes #N"
-Milestone: gh issue edit N --milestone "v{x}.{y}.{z}"
-```
 
-### Title Convention
+The final sprint of a patch is followed by a squash-merge of the patch branch
+into `main`. **That squash-merge fires the automated release pipeline** —
+see §IV.
+
+---
+
+## II. GitHub Issues, PRs, Milestones
+
+### Issue title convention
 
 `{type}({scope}): {description}`
 
@@ -84,214 +103,73 @@ Milestone: gh issue edit N --milestone "v{x}.{y}.{z}"
 | `chore` | Maintenance, version bumps |
 | `cleanup` | Dead code removal, restructuring |
 | `refactor` | Code restructuring without behavior change |
+| `docs` | Documentation-only change |
 
-### Labels
+### Standard labels
 
-Standard set: `bug`, `enhancement`, `cleanup`, `refactor`, `tracking`, `documentation`
+`bug`, `enhancement`, `cleanup`, `refactor`, `tracking`, `documentation`.
 
-### Milestones
-
-Create one per version: `v{x}.{y}.{z}`. Attach all issues targeted for that release.
-
-```bash
-gh api repos/{owner}/{repo}/milestones --method POST -f title="v0.0.9"
-gh issue edit N --milestone "v0.0.9"
-```
-
-### Stale Issue Triage
-
-Close issues that are superseded or already resolved:
-
-```bash
-gh issue close N --comment "Superseded by #M" --reason "not planned"
-gh issue close N --comment "Resolved in v{x}.{y}.{z}" --reason "completed"
-```
-
-## Pull Request Convention
-
-### PR Title
-
-Same as issue convention: `{type}({scope}): {description}`
-
-### PR Body Template
+### PR body template
 
 ```markdown
 ## Summary
-- Bullet points describing what changed and why
+- Bullet points describing what changed and why.
 
 ## Issues
 - Closes #N
 - Fixes #M
 
 ## Test Plan
-- [ ] `cargo clippy --workspace --features full`
-- [ ] `cargo fmt --all --check`
-- [ ] `cargo test --workspace --features full`
+- [ ] <project-appropriate gate 1>
+- [ ] <project-appropriate gate 2>
 ```
 
-### Merge Strategy by Context
+The test plan is project-shaped. Common gates by project type:
 
-| Source → Target | Strategy | Why |
-|----------------|----------|-----|
-| `dev.{i}` → `v{x}.{y}.{z}` | `--rebase` | Preserve phase commit history |
-| `v{x}.{y}.{z}` → `main` | `--squash` | Clean single release commit |
+| Project type | Gates |
+|---|---|
+| Marketplace / docs-only | Manual review; frontmatter lint; install-script dry run |
+| Rust workspace | `cargo fmt --all --check`, `cargo clippy --workspace --features full -- -D warnings`, `cargo test --workspace --features full` |
+| Hybrid (TS + Rust) | The Rust set plus `pnpm lint && pnpm test` (or equivalent) |
 
-## CI/CD Workflows (.github/workflows/)
+### Milestones
 
-### Required Workflows
-
-| Workflow | Triggers | Purpose |
-|----------|----------|---------|
-| `cargo-clippy.yml` | PR (synchronize), push (main + tags) | Lint + SARIF upload |
-| `cargo-test.yml` | PR (main), push (main + tags), release | Test matrix: stable + nightly |
-| `cargo-build.yml` | push (main + tags) | Multi-target: native + WASM (wasip1, wasip2) |
-| `cargo-publish.yml` | release (published) | Sequential crates.io publish |
-| `release.yml` | release (published) | GH release notes + links |
-| `docker.yml` | push (tags), workflow_dispatch | Multi-container Docker builds |
-| `fly-io.yml` | workflow_dispatch | Deploy to Fly.io |
-| `cleanup.yml` | PR (closed) | Branch cleanup |
-
-### Workflow Patterns
-
-Refer to `references/ci-patterns.md` for full workflow templates derived from the
-production pzzld-rs reference implementation.
-
-Key patterns:
-- **Matrix builds**: features × targets × toolchains
-- **Sequential publishing**: `max-parallel: 1` for crates.io to prevent race conditions
-- **Concurrency control**: `cancel-in-progress: false` per workflow/ref group
-- **SARIF upload**: Clippy results to GitHub code scanning (public repos)
-- **WASM builds**: cargo-component for wasip1, native for wasip2
-- **Nightly matrix**: `no_std`, `alloc+nightly` feature combos on nightly toolchain
-
-### Standard Environment
-
-```yaml
-env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: full
-```
-
-## Rust Workspace Crate Scaffolding
-
-### Adding a New Crate to `crates/*`
-
-Every crate within `crates/*` follows an exact structure. Deviations are bugs.
-
-#### 1. Create the crate
+One milestone per patch version: `v{x}.{y}.{z}`. Attach every issue targeted
+for that release. The automated pipeline **rolls open issues forward to the
+next milestone** on release (see §IV.5).
 
 ```bash
-cargo init --lib crates/{name}
-mkdir -p crates/{name}/wit
+# Create
+gh api "repos/${OWNER}/${REPO}/milestones" --method POST -f title="v0.1.5"
+
+# Attach
+gh issue edit N --milestone "v0.1.5"
+
+# Triage stale
+gh issue close N --comment "Superseded by #M" --reason "not planned"
+gh issue close N --comment "Resolved in v0.1.5"      --reason "completed"
 ```
 
-#### 2. Cargo.toml Template
+---
 
-Refer to `references/crate-template.md` for the complete Cargo.toml template.
+## III. Plan & Sprint Structure
 
-Critical rules:
-- **ALL metadata** inherits from workspace (authors, edition, version, etc.)
-- **Only `name` and `description`** are crate-specific
-- **`[lib] bench = false`** unless the crate has benchmarks
-- **`[package.metadata.docs.rs]`** and **`[package.metadata.release]`** sections required
-- **`build = "build.rs"`** with a standard build script
+Every patch `v{x}.{y}.{z}` is decomposed into ordered sprints. Plans live in
+`.artifacts/plans/`, design docs in `.artifacts/docs/`. (Adapt the directory
+to the project; the structure is what matters.)
 
-#### 3. Feature Gate Architecture
+### File naming
 
-Every crate MUST define these environment features:
-
-```toml
-[features]
-default = ["std"]
-full = ["default", ...all optional features..., "dep/full" for each axiom dep...]
-
-# Environment features (MANDATORY)
-std = ["alloc", "dep/std"...]
-alloc = ["dep/alloc"...]
-nightly = []
-wasm = ["std", "dep/wasm"...]
-wasi = ["dep/wasi"...]
-```
-
-Feature propagation rules:
-- `std` MUST enable `alloc` and propagate `/std` to all deps
-- `full` MUST enable all optional features AND propagate `/full` to axiom deps
-- Optional deps use `?/` conditional propagation: `"axiom-config?/serde"`
-- Feature activation for optional deps: `config = ["dep:axiom-config"]`
-
-#### 4. Register in Workspace
-
-In root `Cargo.toml`:
-
-```toml
-# Add to [workspace.dependencies]
-axiom-{name} = { default-features = false, path = "crates/{name}", version = "0.0.9" }
-
-# Add to members list
-members = [..., "crates/{name}"]
-```
-
-#### 5. Register in Umbrella SDK
-
-In `crates/axiom/Cargo.toml`:
-
-```toml
-[dependencies]
-axiom-{name} = { optional = true, workspace = true }
-
-[features]
-{name} = ["dep:axiom-{name}"]
-full = [..., "axiom-{name}?/full"]
-```
-
-In `crates/axiom/lib.rs`:
-
-```rust
-#[cfg(feature = "{name}")]
-pub use axiom_{name} as {name};
-```
-
-#### 6. WIT Directory
-
-Every crate gets `crates/{name}/wit/` with at minimum:
-- `types.wit` — shared type definitions
-- `{name}.wit` — interface definitions
-- `world.wit` — world definition
-
-### SDK Facade Rule
-
-**No crate within `crates/*` should EVER be imported directly by consumers.**
-Consumers depend ONLY on `axiom` and use feature gates.
-
-```toml
-# CORRECT
-axiom = { version = "0.0.9", features = ["bot", "engine"] }
-
-# WRONG — NEVER do this
-axiom-bot = "0.0.9"
-axiom-engine = "0.0.9"
-```
-
-Exceptions:
-- `clients/*` — independent standalone libraries, not part of the SDK
-- `components/*` — depend on the axiom SDK (they are consumers)
-
-## Plan & Sprint Structure
-
-Every version (`v{x}.{y}.{z}`) is decomposed into ordered sprints/phases. Each sprint is a single `dev.N` branch. Plans live in `.artifacts/plans/` and design docs live in `.artifacts/docs/`.
-
-### Plan File Naming (versioned artifacts)
-
-**Drop the date prefix.** Use frontmatter to carry the date instead. Naming is compact and stable:
+Drop the date prefix on versioned artifacts — use frontmatter for the date.
 
 | File | Scope |
 |---|---|
-| `.artifacts/plans/v{xyz}.plan.md` | Version-level plan (roadmap across all sprints) |
-| `.artifacts/plans/v{xyz}-dev{N}.plan.md` | Sprint N plan (scoped to one phase) |
-| `.artifacts/docs/v{xyz}-design.md` | Version-level design doc |
-| `.artifacts/docs/v{xyz}-dev{N}-design.md` | Sprint-specific design doc (if needed) |
+| `v{xyz}.plan.md` | Version-level plan (roadmap across all sprints) |
+| `v{xyz}-dev{N}.plan.md` | Sprint N plan (scoped to one phase) |
+| `v{xyz}-design.md` | Version-level design doc |
+| `v{xyz}-dev{N}-design.md` | Sprint-specific design doc (if needed) |
 
-`{xyz}` is the compact version (e.g., `015` = `0.1.5`, `016` = `0.1.6`).
+`{xyz}` is the compact version (e.g., `015` = `0.1.5`, `510` = `5.1.0`).
 
 **Frontmatter (required on versioned plans + designs):**
 
@@ -301,68 +179,283 @@ title: v0.1.5 Stability Sprint Plan
 createdAt: 2026-04-14
 version: v0.1.5
 phase: 0           # omit for version-level plans
-description: One-sentence summary of this plan/design. Helps skim across many plans.
+description: One-sentence summary. Helps skim across many plans.
 ---
-
-{plan body}
 ```
 
-Required keys: `title`, `createdAt`, `version`. Optional: `phase` (for sprint plans), `description` (recommended for browseability), `updatedAt` (if the plan is revised after first publication). The `createdAt` key is unambiguous against any future `updatedAt` or `reviewedAt` fields.
+Required keys: `title`, `createdAt`, `version`. Optional: `phase`,
+`description` (recommended), `updatedAt`.
 
-Non-versioned artifacts (ad-hoc reports, audits, point-in-time research) keep their date-prefixed names — they're frozen in time by design. Examples:
-- `.artifacts/reports/2026-04-14-v015-audit.md` — keeps date (reports are time-series)
-- `.artifacts/research/2026-04-14-quad-math-audit.md` — keeps date (one-shot research)
+Non-versioned artifacts (audits, point-in-time research, reports) keep
+date-prefixed names — they're frozen in time by design:
 
-### Sprint Internal Structure
+- `.artifacts/reports/2026-04-14-v015-audit.md`
+- `.artifacts/research/2026-04-14-quad-math-audit.md`
 
-Every sprint plan follows the same shape. Structuring this way forces critical work to land before enhancements and ensures validation ships with every sprint:
+### Sprint internal structure — the five sections
+
+Every sprint plan follows the same shape. This forces critical work to land
+before enhancements and ensures validation ships with every sprint.
 
 ```
-1. Critical issues       — must-fix blockers, security, data loss, broken pipelines
-2. Enhancements           — capabilities the sprint adds
-3. Optimizations          — performance, cleanup, dead-code removal
-4. Wiring / Interfaces    — CLI/MCP/GUI surface wire-up for new behavior
-5. Audit                  — validation that the changes meet spec (tests, manual checks, live observation)
+1. Critical issues    — must-fix blockers, security, data loss, broken pipelines
+2. Enhancements       — capabilities the sprint adds
+3. Optimizations      — performance, cleanup, dead-code removal
+4. Wiring / Interfaces — CLI/MCP/GUI surface wire-up for new behavior
+5. Audit              — validation: tests, manual checks, live observation
 ```
 
-Sprint plans should be written with these five sections — even if a section is "N/A for this sprint" say so explicitly. Tracks within a sprint usually map to one of these five sections.
+Even if a section is "N/A for this sprint" say so explicitly. Tracks within
+a sprint usually map to one of these five sections.
 
-### Version-Level Plan
+### Version-level plan
 
-The version plan (`v{xyz}.plan.md`) is the roadmap. It lists each sprint with:
-- Number (`dev.0`, `dev.1`, ...)
-- Theme (one sentence)
-- Entry criteria (what must be true before starting)
-- Exit criteria (what defines "done" for this sprint)
-- Link to the sprint plan file
+`v{xyz}.plan.md` is the roadmap. For each sprint, list:
 
-### Git Flow (canonical)
+- Number (`dev.0`, `dev.1`, …).
+- Theme (one sentence).
+- Entry criteria (what must be true before starting).
+- Exit criteria (what defines "done" for this sprint).
+- Link to the sprint plan file.
+
+### Canonical git flow
 
 ```
 1. Write v{xyz}.plan.md (version roadmap with sprint list).
 2. For each sprint N:
    a. Open branch v{xyz}-dev.{N} off v{xyz}.
-   b. Write v{xyz}-dev{N}.plan.md (scoped to this phase's 5 sections).
-   c. Dispatch track PRs targeting v{xyz}-dev.{N}.
-   d. When sprint complete + audited, rebase-merge v{xyz}-dev.{N} → v{xyz}. Delete dev branch.
-3. When all sprints in v{xyz}.plan.md complete, squash-merge v{xyz} → main (user-approved).
-4. Tag release, create GH release.
+   b. Write v{xyz}-dev{N}.plan.md (the 5 sections).
+   c. Dispatch track PRs against v{xyz}-dev.{N}.
+   d. When sprint complete + audited, rebase-merge dev.N → v{xyz}. Delete dev branch.
+3. When all sprints done, squash-merge v{xyz} → main (operator-approved).
+4. release.yml does the rest (tag, release, next-patch, dev.0, sweep, milestone roll).
 ```
 
-**Don't start `dev.(N+1)` until `dev.N` is merged.** Parallel phase branches defeat the point of the phase structure — they hide cross-cutting drift.
+**Rename historical plans cautiously.** Old date-prefixed plans are historical
+record — leave them. Only new plans use the dateless convention.
 
-### Rules
+---
 
-- **Rebase-merge dev.N → version** — preserves phase commit history as readable trees
-- **Squash-merge version → main** — main shows one commit per release
-- **Track branches within a sprint** are ephemeral; `gh pr merge --rebase --delete-branch` is the standard pattern
-- **Version-changing PRs (dev.N → version OR version → main) require explicit user approval**
-- **Rename historical plans cautiously.** Old dated-filename plans should be left alone — they're historical record. New plans use the new convention.
+## IV. The Automated Release Pipeline
 
-## Additional Resources
+**Source of truth:** `.github/workflows/release.yml`. Read that file if anything
+below disagrees with reality — the workflow is canonical.
 
-### Reference Files
+### Trigger
 
-- **`references/ci-patterns.md`** — Full CI/CD workflow templates from pzzld-rs reference
-- **`references/crate-template.md`** — Complete Cargo.toml template for new crates
-- **`references/release-checklist.md`** — Step-by-step release process checklist
+The pipeline runs on `push` to `main` (and on `workflow_dispatch`). On every
+push to `main` it inspects the HEAD commit subject and proceeds only if it
+matches:
+
+- `vX.Y.Z` (operator convention; gh appends ` (#N)` on squash — tolerated), or
+- `release: vX.Y.Z` (back-compat for automation-authored PRs).
+
+The extracted version is **cross-checked against `.claude-plugin/plugin.json`**.
+A stray commit subject can't fire the pipeline against the wrong version — the
+job logs `::warning::` and exits cleanly.
+
+### Steps executed (in order)
+
+| # | Step | Effect |
+|---|---|---|
+| 1 | Detect release squash commit | Parses HEAD subject, validates against `plugin.json` |
+| 2 | Compute next version (mod-10 cascade) | `Z<9 → patch`, else `Y<9 → minor`, else `major`; emits `current`, `next`, `tag`, branch names |
+| 3 | Extract release notes from `CHANGELOG.md` | Slices the `## v{CURRENT}` section; fails the run if missing |
+| 4 | Tag `v{CURRENT}` on main | Idempotent: skips if tag already exists locally or on origin |
+| 5 | Create GitHub Release | Idempotent: skips if release exists; uses extracted notes |
+| 6 | Cut next patch branch + bump versions | Branches `v{NEXT}` off main; rewrites `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` (root + every plugin entry), every `skills/*/plugin.json`, every `skills/*/SKILL.md` frontmatter version, and `README.md` |
+| 7 | Commit + push patch branch | `chore({PATCH}/version): bump plugin {CURRENT} → {NEXT}` |
+| 8 | Open draft PR `v{NEXT}` → main | Title `release: v{NEXT}`; the empty container for the new patch's sprints |
+| 9 | Cut `v{NEXT}-dev.0` off `v{NEXT}` | First sprint branch of the new patch, ready for work |
+| 10 | Orphan sweep | Deletes `v{CURRENT}-dev.{0..9}` from origin |
+| 11 | Milestone roll | Creates milestone `v{NEXT}` if missing; moves every open issue from `v{CURRENT}` → `v{NEXT}` |
+
+Every step is **idempotent** — a partial prior run can be safely re-driven via
+`workflow_dispatch` once the underlying issue is fixed.
+
+### Operator responsibilities before the squash
+
+1. The patch branch `v{x}.{y}.{z}` must contain a `## v{x}.{y}.{z}` section in
+   `CHANGELOG.md`. If it's missing, step 3 fails the whole run.
+2. `.claude-plugin/plugin.json` `version` must equal the patch version. (The
+   version was set automatically when the *previous* release cut this patch
+   branch — only intervene if you renumbered manually.)
+3. Branch protection on `main` must require PR + linear history + no
+   force-push. The pipeline depends on `git log -1 --format=%s HEAD` returning
+   the squash subject.
+4. PR title format: bare `v{x}.{y}.{z}` (preferred) or `release: v{x}.{y}.{z}`.
+   gh appends ` (#N)` on squash; the regex tolerates that suffix.
+
+### Operator responsibilities after the squash
+
+Usually: **nothing**. Verify the run succeeded:
+
+```bash
+gh run list --workflow=release.yml --limit 3
+gh release view "v{x}.{y}.{z}"
+gh pr view "v{next}"        # the draft PR should exist
+git fetch --prune origin    # observe v{next}-dev.0 appearing
+```
+
+If a step failed mid-pipeline, fix the cause and re-dispatch:
+
+```bash
+gh workflow run release.yml --ref main
+```
+
+The idempotency guards (`if tag exists`, `if release exists`, `if branch
+exists`, `if milestone exists`) make re-runs safe.
+
+### Mod-10 cascade — what to expect
+
+| Current `Z` | Result |
+|---|---|
+| `Z < 9` | Patch bump: `(X, Y, Z+1)` |
+| `Z == 9` and `Y < 9` | Minor bump: `(X, Y+1, 0)` |
+| `Z == 9` and `Y == 9` | Major bump: `(X+1, 0, 0)` |
+
+The pipeline is named "patch pipeline" but the cascade handles all three.
+This is intentional — every release looks the same to the operator.
+
+---
+
+## V. CI/CD Workflows (Rust Workspace Projects)
+
+This marketplace's only workflow is `release.yml`. The patterns below apply
+to **Rust workspace projects** (the axiom family); pull them in when standing
+up CI for a new Rust project.
+
+### Recommended workflow set
+
+| Workflow | Triggers | Purpose |
+|---|---|---|
+| `cargo-clippy.yml` | PR (synchronize), push (main + tags) | Lint + SARIF upload |
+| `cargo-test.yml` | PR (main), push (main + tags), release | Test matrix: stable + nightly |
+| `cargo-build.yml` | push (main + tags) | Multi-target: native + WASM (wasip1, wasip2) |
+| `cargo-publish.yml` | release (published) | Sequential crates.io publish |
+| `release.yml` | release (published) | GH release notes + crates.io/docs.rs links |
+| `docker.yml` | push (tags), workflow_dispatch | Multi-container Docker builds |
+| `fly-io.yml` | workflow_dispatch | Deploy to Fly.io |
+| `cleanup.yml` | PR (closed) | Branch cleanup |
+
+Templates: `references/ci-patterns.md`.
+
+### Standing patterns
+
+- **Matrix builds.** Features × targets × toolchains.
+- **Sequential publishing.** `max-parallel: 1` on the publish matrix to
+  serialize crates.io uploads in dependency order.
+- **Concurrency control.** `cancel-in-progress: false` per workflow/ref group
+  — interrupting a release mid-flight is worse than queuing.
+- **SARIF upload.** Clippy results to GitHub code scanning on public repos.
+- **WASM builds.** `cargo-component` for `wasm32-wasip2`; native `cargo build`
+  for `wasm32-wasip1` and the wasm32-unknown target.
+- **Nightly matrix.** `no_std`, `alloc+nightly` feature combos on the nightly
+  toolchain. Catches feature-gate drift early.
+
+### Standard env block
+
+```yaml
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+```
+
+---
+
+## VI. Rust Workspace Crate Scaffolding
+
+Cargo command semantics (`cargo new`, `cargo init`, the manifest schema,
+workspace inheritance, feature-gate syntax) live in `rust/cargo.md`. This
+section covers **project-policy** for the axiom-family Rust workspaces —
+conventions cargo itself doesn't enforce.
+
+### When adding a crate under `crates/*`
+
+1. **Create** with `cargo init --lib crates/{name}`, then `mkdir crates/{name}/wit`.
+2. **Cargo.toml** — copy `references/crate-template.md` verbatim. Critical
+   policy rules:
+   - All metadata inherits from workspace (`field.workspace = true`).
+   - Only `name` and `description` are crate-specific.
+   - `[lib] bench = false` unless the crate carries benchmarks.
+   - `[package.metadata.docs.rs]` and `[package.metadata.release]` are required.
+   - `build = "build.rs"` with the standard build script.
+3. **Mandatory environment features.** Every crate defines `default`, `full`,
+   `std`, `alloc`, `nightly`, `wasm`, `wasi`. Feature propagation rules:
+   - `std` → enables `alloc` and propagates `/std` to all deps.
+   - `full` → enables all optional features AND propagates `/full` to axiom deps.
+   - Optional deps: `config = ["dep:axiom-config"]`.
+   - Conditional propagation: `"axiom-config?/serde"`.
+4. **Register in workspace root.**
+   ```toml
+   [workspace.dependencies]
+   axiom-{name} = { default-features = false, path = "crates/{name}", version = "{X.Y.Z}" }
+
+   [workspace]
+   members = [..., "crates/{name}"]
+   ```
+5. **Register in the umbrella SDK** (`crates/axiom/Cargo.toml`).
+   ```toml
+   [dependencies]
+   axiom-{name} = { optional = true, workspace = true }
+
+   [features]
+   {name} = ["dep:axiom-{name}"]
+   full   = [..., "axiom-{name}?/full"]
+   ```
+   Re-export in `crates/axiom/src/lib.rs`:
+   ```rust
+   #[cfg(feature = "{name}")]
+   pub use axiom_{name} as {name};
+   ```
+6. **WIT directory.** `crates/{name}/wit/` with at minimum `types.wit`,
+   `{name}.wit`, `world.wit`. Even if the crate isn't a wasm component today,
+   the world file documents the intended surface.
+
+### SDK Facade Rule
+
+**No crate within `crates/*` is imported directly by external consumers.**
+Consumers depend ONLY on `axiom` and use feature gates.
+
+```toml
+# CORRECT
+axiom = { version = "{X.Y.Z}", features = ["bot", "engine"] }
+
+# WRONG — never do this externally
+axiom-bot    = "{X.Y.Z}"
+axiom-engine = "{X.Y.Z}"
+```
+
+Exceptions:
+
+- `clients/*` — independent standalone libraries; not part of the SDK surface.
+- `components/*` — consumers of the axiom SDK (they depend on it like any
+  external project would).
+
+For the cargo-side mechanics of workspace inheritance and feature gates, see
+`rust/cargo.md` §3 (workspaces) and §4 (feature gates).
+
+---
+
+## VII. Reference Files
+
+- **`references/ci-patterns.md`** — full GitHub Actions templates (Clippy,
+  Test, Build, Publish, Release, Docker, Cleanup) derived from the production
+  pzzld-rs implementation. Drop-in starting point for Rust workspace projects.
+- **`references/crate-template.md`** — the complete `Cargo.toml` template for
+  a new axiom-family crate, plus the feature-gate checklist.
+- **`references/release-checklist.md`** — operator pre-flight checklist for
+  the squash-merge that fires the release pipeline. Pairs with §IV above.
+
+---
+
+## VIII. Cross-Skill Pointers
+
+- `rust` — language fluency, ownership, async, traits, no_std tiers.
+- `rust/cargo.md` — every cargo command, the `Cargo.toml` schema, workspace
+  mechanics, feature-gate syntax, `[profile.*]`, `.cargo/config.toml`,
+  registries. Workflow defers to it for cargo semantics.
+- `rust/rustc.md` — compiler knobs (codegen flags, target triples, editions,
+  lints, sanitizers).
+- `webassembly` — language-agnostic WASM toolchain.
+- `wasmtime` — Rust-side host embedding.

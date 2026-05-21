@@ -1,7 +1,7 @@
 {
   "name": "webassembly",
-  "version": "5.0.4",
-  "description": "Language-agnostic WebAssembly guidance. WIT syntax, component model semantics, WASI capabilities, and binary format. Covers wasm-components, WIT interfaces/worlds, WASI p2, and the four pillars: isolation, portability, hot-swap, and composability.",
+  "version": "5.1.0",
+  "description": "Language-agnostic WebAssembly knowledge silo. WIT syntax (including feature gates, async stream/future, own/borrow resource handles), component model semantics + canonical ABI, WASI 0.2 capability model with the wasm32-wasip2 target, WASI 0.3 / wasm32-wasip3 trajectory, and the binary format. Companion to the wasmtime sibling skill (Rust host embedding) and the rust skill (language/build surface).",
   "author": {
     "name": "FL03",
     "email": "j3mccain@gmail.com",
@@ -15,7 +15,11 @@
     "wasm",
     "wit",
     "wasi",
+    "wasi-preview2",
+    "wasm32-wasip2",
     "component-model",
-    "wasm-components"
+    "wasm-components",
+    "wasm-tools",
+    "canonical-abi"
   ]
 }

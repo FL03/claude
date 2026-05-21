@@ -1,6 +1,24 @@
 ---
 name: WebAssembly
-description: This skill should be used when the user asks about "wasm", "WebAssembly", "wasi", "wasm components", "wit", "component model", "wasm32-wasip2", or when working with .wasm/.wat/.wit files, cargo-component, wasmtime, wit-bindgen, wasm-tools, wac, or any WebAssembly runtime, toolchain, or interface question. Language-agnostic WebAssembly guidance — Rust-specific toolchain topics (cargo-component usage, wit-bindgen codegen, wasm-bindgen) belong in the rust skill.
+slug: webassembly
+version: 5.1.0
+description: |
+  Language-agnostic WebAssembly knowledge silo. Use whenever the question
+  touches "wasm", "WebAssembly", "wasi", "wasm components", "wit", the
+  component model, the `wasm32-wasip1`/`wasm32-wasip2`/`wasm32-wasip3`
+  targets, `.wasm`/`.wat`/`.wit` files, or the `wasm-tools` / `wac` /
+  `wit-bindgen` / `cargo-component` / `wasm-bindgen` toolchain. Covers the
+  binary format, stack-machine execution, WIT syntax (including feature
+  gates `@since`/`@unstable`/`@deprecated`, async `stream<T>`/`future<T>`,
+  resource handles `own<T>`/`borrow<T>`), WASI 0.2 capability model and
+  WASI 0.3 trajectory, and the component-model canonical ABI. Rust-side
+  host embedding lives in the `wasmtime` sibling skill; Rust-side build /
+  language knowledge lives in the `rust` skill. Reach for those for the
+  language-side question; everything spec/contract/binary-shape stays here.
+metadata:
+  openclaw:
+    emoji: "🪢"
+    os: ["linux", "darwin", "win32"]
 ---
 
 # WebAssembly
@@ -15,7 +33,7 @@ Three properties make WASM useful at runtime boundaries:
 2. **Portability** — the same `.wasm` runs on any host with a compatible runtime, regardless of OS or architecture.
 3. **Hot-swap** — a new `.wasm` can replace a running one by re-instantiating the component in a fresh store.
 
-This skill is **language-agnostic**. WIT syntax, component model semantics, WASI capabilities, and the binary format live here. **Rust-side integration** (target choice, `cargo-component`, `wit-bindgen` macro, `wasmtime` host embedding, dual native+wasm32 build) lives in the `rust` sibling skill (`wasm.md`, `wasmtime-host.md`).
+This skill is **language-agnostic**: WIT syntax, component model semantics, WASI capabilities, the canonical ABI, and the binary format live here. **Rust-side host embedding** (`Engine`/`Store`/`Linker`/`Component`, `wasmtime::component::bindgen!`, `WasiCtxBuilder`) lives in the `wasmtime` sibling skill. **Rust language and build surface** (target flags, the `cargo-component` CLI, the `wit-bindgen` macro, `wasm-bindgen` for the browser) lives in the `rust` sibling skill plus docs.rs for crate APIs. Anything that is "what does this contract MEAN / what is the on-the-wire shape / which capability is needed" belongs here regardless of language.
 
 ## The Four Pillars
 
@@ -58,7 +76,7 @@ Do NOT use WASM when:
 
 **Clock and random are not free.** WASM has no built-in access to the system clock or a CSPRNG. The host must explicitly wire in the WASI `wasi:clocks` and `wasi:random` interfaces. A component compiled expecting these and running under a linker that doesn't provide them will trap at instantiation time, not at the first call.
 
-**`wasm32-wasip2` is not `wasm32-unknown-unknown`.** The `wasip2` target produces a component, not a raw module. Tooling that expects a flat `.wasm` module (`wasm-bindgen`, some older toolchains) may not handle it correctly. The `wasm32-unknown-unknown` target is for browser/bindgen scenarios; `wasm32-wasip2` is for server-side component model scenarios. Mixing them is the most common source of "why won't this load?" errors.
+**`wasm32-wasip2` is not `wasm32-unknown-unknown`.** The `wasip2` target produces a component, not a raw module. Tooling that expects a flat `.wasm` module (`wasm-bindgen`, some older toolchains) may not handle it correctly. The `wasm32-unknown-unknown` target is for browser/bindgen scenarios; `wasm32-wasip2` is for server-side component model scenarios. Mixing them is the most common source of "why won't this load?" errors. The legacy `wasm32-wasi` target was renamed to `wasm32-wasip1`; `wasm32-wasip3` exists as a Tier 3 target for the upcoming WASI 0.3 (`wasm32-wasip2` is Tier 2 and is the default for component-model server scenarios today).
 
 **WIT types are not host-language types.** Strings in WIT are UTF-8, length-prefixed, and copied at the boundary. A guest's `&str` is not the same pointer as the host sees. `record` fields are laid out by the component model ABI, not by the host language's repr rules. Never assume memory layout compatibility across the boundary.
 
@@ -99,7 +117,7 @@ The host typically holds a mutex around runtime state containing the `Store` and
 
 Hot-swap is a re-instantiation: compile the new `.wasm` bytes into a `Component`, create a new `Store`, instantiate new bindings, replace the runtime-state contents. The old store and bindings are dropped. **No state survives a swap** — guests are stateless across instantiations unless the host explicitly persists state.
 
-Rust-side embedding details (Engine/Store/Linker/Component, `bindgen!` macro, WASI capability grants, `Mutex`-wrapped state) live in the `rust` skill's `wasmtime-host.md`.
+Rust-side embedding details (Engine/Store/Linker/Component, `bindgen!` macro, WASI capability grants, `Mutex`-wrapped state, AOT precompilation) live in the `wasmtime` sibling skill.
 
 ## WIT Directionality Quick Reference
 
@@ -142,18 +160,34 @@ For runtime errors:
 
 The most common source of silent failures: changing a WIT file without recompiling the component that implements it. The host bindgen re-runs at build time, but the `.wasm` binary must also be rebuilt against the updated WIT. If the WIT and the component binary diverge, the link error surfaces at runtime instantiation.
 
+## Toolchain Pointers
+
+The WASM toolchain has language-agnostic and language-specific tools. The language-agnostic ones live in this skill's reference files; the language-specific ones live in their host language's skill or on docs.rs.
+
+| Tool | What it is | Where the depth lives |
+|---|---|---|
+| `wasm-tools` | Swiss Army knife: validate, print, `component new`, `component wit`, `compose`, `metadata show`, `strip`. The binary inspector. | `wasm-components.md`, `wit.md` |
+| `wac` | WebAssembly Composition tool — wires components together by their WIT imports/exports. | `wasm-components.md` |
+| `wit-bindgen` | Multi-language **guest-side** binding generator from a `.wit` package. Rust, C, Go, JS, Python. | host language skill (Rust: see crate docs on docs.rs) |
+| `wasmtime` | Reference runtime + Rust host embedding crate. | `wasmtime` sibling skill |
+| `cargo-component` | Rust-specific cargo subcommand: compiles a Rust crate directly to a WASM component, runs `wit-bindgen` at build time, targets `wasm32-wasip2`. | `rust` skill `cargo.md`; crate docs |
+| `wasm-bindgen` | Rust↔JS interop for `wasm32-unknown-unknown` (browser). NOT a component-model tool — produces raw modules. | `rust` skill / docs.rs |
+
+`cargo-component` and `wasm-bindgen` are mutually exclusive targets: the former produces components for `wasm32-wasip2`; the latter produces raw modules for `wasm32-unknown-unknown`. Mixing them in the same crate's build will fail.
+
 ## Reference Files
 
 Four flat reference files live alongside this skill:
 
 - **`wasm.md`** — Stack machine, linear memory, module structure, text/binary format, traps, runtime landscape, security model.
-- **`wasi.md`** — WASI capabilities, preview1 vs preview2 distinction, `wasm32-wasip2` target, capability model, adapters.
-- **`wasm-components.md`** — Component vs module, composition, interface types vs core types, resources, `wasm-tools`, `wac`.
-- **`wit.md`** — WIT syntax reference, worlds, interfaces, types, **directionality** (the most important concept), placement rules, anti-patterns.
+- **`wasi.md`** — WASI capabilities, preview1 vs preview2 distinction, `wasm32-wasip2` target, capability model, adapters, WASI 0.3 trajectory.
+- **`wasm-components.md`** — Component vs module, composition, interface types vs core types, resources (`own<T>`/`borrow<T>`), canonical ABI, `wasm-tools`, `wac`.
+- **`wit.md`** — WIT syntax reference, worlds, interfaces, types, **directionality** (the most important concept), feature gates (`@since`/`@unstable`/`@deprecated`), `include`, async (`stream<T>`/`future<T>`), placement rules, anti-patterns.
 
 Read the pillar file that matches the question before answering. For WIT questions, `wit.md` is authoritative. For capability/sandbox questions, `wasi.md`. For composition questions, `wasm-components.md`.
 
 ## Cross-references to other skills
 
-- **`rust`** (sibling skill) — Rust-side integration: `wasm.md` (target choice, cargo-component, wit-bindgen guest pattern), `wasmtime-host.md` (host embedding recipe). Reach there for any "how do I make this compile/build/link in Rust?" question.
+- **`wasmtime`** (sibling skill) — Rust-side host embedding: `Engine`/`Store`/`Linker`/`Component` lifecycle, `wasmtime::component::bindgen!`, `WasiCtxBuilder` capability grants, the `Mutex<Inner>` driver pattern, AOT precompilation. Reach there for any "how do I load and call this `.wasm` from a Rust host?" question.
+- **`rust`** (sibling skill) — Rust language and build surface. The Rust target tier table is in `rust/rustc.md`; the `cargo-component` subcommand summary is in `rust/cargo.md`. Reach there for Rust-side compile/link/feature questions.
 - **`code-style`** (sibling skill) — personal-preference layer for whichever host language is involved. Project-specific component layouts (which directory holds the `.wasm` builds, naming conventions, dependency rules) live in the project's own docs, not here.

@@ -55,15 +55,22 @@ Gamma  Γ = ∂²V/∂S²     = N'(d₁)/(Sσ√T)
            Long gamma = profits from large moves (long options).
 
 Theta  Θ = ∂V/∂t       (negative for long options — time decay)
-           ≈ −(Sσ·N'(d₁))/(2√T) − rK·e^(−rT)·N(d₂)  [call]
+           Call: −(Sσ·N'(d₁))/(2√T) − rK·e^(−rT)·N(d₂)
+           Put : −(Sσ·N'(d₁))/(2√T) + rK·e^(−rT)·N(−d₂)
 
-Vega   ν = ∂V/∂σ       = S√T·N'(d₁)
+Vega   ν = ∂V/∂σ       = S√T·N'(d₁)                    (call = put)
            Sensitivity to volatility. Options are long vega by default.
            1 vega unit = $ change per 1% move in σ.
 
-Rho    ρ = ∂V/∂r       = KT·e^(−rT)·N(d₂)  [call]
+Rho    ρ = ∂V/∂r       Call:  KT·e^(−rT)·N(d₂)
+                       Put : −KT·e^(−rT)·N(−d₂)
            Usually smallest; matters for long-dated options.
 ```
+
+Second-order Greeks worth knowing:
+- **Vanna** = ∂²V/∂S∂σ — sensitivity of delta to vol (or vega to spot). Hedge of skew-trading books.
+- **Volga** (vomma) = ∂²V/∂σ² — sensitivity of vega to vol. OTM-rich books are long volga.
+- **Charm** = ∂²V/∂S∂t — delta decay; relevant near expiry for pin-risk management.
 
 ### Volatility Surface & Smile
 Black-Scholes implies a flat vol surface. Real markets show:
@@ -73,6 +80,30 @@ Black-Scholes implies a flat vol surface. Real markets show:
 
 Implied vol is the market's BS-inverted price. It is observable. Historical vol is realized.
 **Vol risk premium** = IV − HV > 0 on average (sellers of options earn a premium).
+
+### American Options & Early Exercise
+Black-Scholes prices **European** options (exercise only at T). American options allow
+exercise at any t ≤ T and satisfy a **free-boundary** problem: the holder chooses τ ≤ T
+to maximize E[e^(−rτ)·payoff(S_τ)].
+```
+V(S,t) = max( intrinsic(S),  continuation value )
+       ≥ intrinsic at all (S,t)        [no early exercise gives away value]
+```
+Key facts:
+- **American call on a non-dividend stock = European call** (never optimal to exercise early; carry the strike).
+- **American put** is strictly more valuable than the European put. Early exercise is
+  optimal when S falls below a critical boundary S*(t) that rises monotonically toward K
+  as t → T.
+- With **dividends**, early call exercise can be optimal just before the ex-dividend date.
+
+Numerical methods:
+- **Binomial tree (CRR)** — discrete-time, easy to implement, naturally handles early
+  exercise via backward induction with `V = max(intrinsic, discounted continuation)`.
+- **Longstaff–Schwartz (LSM)** — regression-based Monte Carlo for high-dimensional or
+  path-dependent Americans; regress continuation value on basis functions (e.g.,
+  Laguerre polynomials in S) at each exercise date.
+- **PSOR / projected SOR on the BS PDE** — solve the linear-complementarity problem
+  directly; convergent but slower than LSM in high dimensions.
 
 ---
 
@@ -100,14 +131,34 @@ Feller condition: 2κθ > ξ²  → ensures variance stays positive
 - ρ < 0 → stocks fall when vol rises → realistic
 
 ### Pricing
-No simple closed form. Use characteristic function φ(u):
+No simple closed form. Use the characteristic function of log-S under the two probability
+measures (delta-measure for P₁, risk-neutral measure for P₂):
 ```
-C = S·P₁ − K·e^(−rT)·P₂
+C = S·P₁ − K·e^(−rT)·P₂                          (Heston 1993)
 
-P_j = ½ + (1/π) ∫₀^∞ Re[e^(−iu·ln(K)) · φ_j(u) / (iu)] du
+P_j = ½ + (1/π) ∫₀^∞ Re[ e^(−iu·ln(K)) · φ_j(u; x, v, T) / (iu) ] du,   j = 1,2
 
-Computed numerically via FFT. In Python: use `py_vollib` or implement via scipy.integrate.
+φ_j(u; x, v, T) = exp( C_j(u,T) + D_j(u,T)·v + iu·x ),   x = ln(S_t)
+
+D_j(u,T) = ((b_j − ρξui + d_j) / ξ²) · (1 − e^(d_j·T)) / (1 − g_j·e^(d_j·T))
+C_j(u,T) = r u i T + (κθ/ξ²) · [ (b_j − ρξui + d_j)T − 2 ln((1 − g_j·e^(d_j·T))/(1 − g_j)) ]
+
+d_j = √( (ρξui − b_j)² − ξ²(2 u_j ui − u²) )
+g_j = (b_j − ρξui + d_j) / (b_j − ρξui − d_j)
+
+with  (u₁, b₁) = (½, κ − ρξ),  (u₂, b₂) = (−½, κ).
 ```
+
+P₁ is the delta of the call (= probability the option is ITM under the stock-numéraire
+measure); P₂ is the risk-neutral probability of expiring ITM. The integral is computed
+numerically — Carr–Madan FFT is the standard fast path; `scipy.integrate.quad` is fine for
+single-strike pricing. Watch the branch cut of the complex logarithm: use the
+**Albrecher / "Little Heston Trap"** formulation (swap signs in d_j and g_j) for stable
+long-maturity pricing.
+
+Calibration: fit (κ, θ, ξ, ρ, v₀) to a strip of market IVs by minimizing weighted squared
+errors. The objective is non-convex — seed from sensible defaults (e.g., θ ≈ ATM IV²,
+v₀ ≈ θ, κ ∈ [1,5], ρ ∈ [−0.8, −0.3], ξ ∈ [0.2, 0.6] for equity indices).
 
 ---
 

@@ -1,60 +1,97 @@
+---
+type: reference
+parent: workflow
+---
+
 # Release Checklist
 
-Step-by-step process for releasing a version. Execute in order — no skipping.
+Pre-flight checklist for the squash-merge that fires `.github/workflows/release.yml`.
+Pairs with SKILL.md §IV. **Read the workflow file itself if anything below
+disagrees with reality — release.yml is canonical.**
 
-## Pre-Release (on version branch `v{x}.{y}.{z}`)
+> **Mental model.** The pipeline does almost all of the historical "release
+> dance" automatically (tag, GH release, next patch branch, version bumps,
+> dev.0, orphan sweep, milestone roll). Your job is to (a) ensure the inputs
+> are clean and (b) verify the outputs landed.
 
-### 1. All phases merged
+---
+
+## Phase A — On the patch branch `v{x}.{y}.{z}` (before squash)
+
+### A.1 — All sprints merged into the patch branch
 
 ```bash
-# Verify all dev branches are merged and closed
-gh pr list --state open --head "v{x}.{y}.{z}-dev"
-# Should return empty. If not, complete or close remaining phases.
+gh pr list --state open --base "v{x}.{y}.{z}"
+# Should be empty. If not, finish or close the open sprint PRs first.
+
+git fetch --prune origin
+git branch -r | rg "v{x}.{y}.{z}-dev\."
+# Any remote dev branches still around? They'll be swept by step 10
+# of release.yml, but it's cleaner to merge or close them now.
 ```
 
-### 2. Version consistency
+### A.2 — `CHANGELOG.md` has a `## v{x}.{y}.{z}` section
 
 ```bash
-# Workspace Cargo.toml version
-grep '^version' Cargo.toml
-
-# All crates must match
-cargo metadata --no-deps --format-version=1 | python3 -c "
-import json, sys
-meta = json.load(sys.stdin)
-for p in meta['packages']:
-    if p['version'] != '${VERSION}':
-        print(f'MISMATCH: {p[\"name\"]} = {p[\"version\"]}')"
-
-# axiom.toml platform version
-grep 'version' .axiom/config/axiom.toml
+rg "^## v{x}.{y}.{z}( |$)" CHANGELOG.md
 ```
 
-### 3. Quality gates
+**This is the hardest hard requirement.** Step 3 of release.yml extracts the
+notes by `awk`-slicing this exact header. Missing or misspelled → the entire
+pipeline fails with `::error::No '## v{CURRENT}' section found in CHANGELOG.md`.
+
+The section runs from `## v{x}.{y}.{z}` to (but not including) the next
+`## v...` header.
+
+### A.3 — `.claude-plugin/plugin.json` `version` matches the patch
 
 ```bash
-# Must all pass clean
+jq -r '.version' .claude-plugin/plugin.json
+# Must equal "{x}.{y}.{z}". If not, step 1 (detect) will skip the run with
+# a ::warning::, and you'll need to fix the mismatch and re-dispatch.
+```
+
+This is normally set automatically when the previous release cut this patch
+branch — only intervene if you renumbered manually.
+
+### A.4 — Quality gates (project-shaped)
+
+**This marketplace (docs-only):**
+
+```bash
+./scripts/install.sh --status                # sanity-check installer
+rg -l '^---$' skills/*/SKILL.md              # frontmatter present
+jq -e '.version' skills/*/plugin.json        # every plugin.json parses
+```
+
+**Rust workspace project:**
+
+```bash
 cargo fmt --all --check
 cargo clippy --workspace --features full -- -D warnings
-cargo test --workspace --features full
-cargo doc --workspace --features full --no-deps
+cargo test  --workspace --features full
+cargo doc   --workspace --features full --no-deps
 ```
 
-### 4. Changelog / release notes
-
-Review commits since last release:
+### A.5 — Version consistency (Rust workspace projects only)
 
 ```bash
-git log v{prev}..HEAD --oneline
+grep '^version' Cargo.toml
+cargo metadata --no-deps --format-version=1 \
+  | jq -r '.packages[] | "\(.name) \(.version)"' \
+  | awk -v v="{x}.{y}.{z}" '$2 != v {print "MISMATCH: "$0}'
 ```
 
-Draft release notes in the GH release body (done automatically by `--generate-notes`).
+---
 
-## Release
-
-### 5. Squash merge into main
+## Phase B — The release squash-merge
 
 ```bash
+# Open the PR (if not already open — the previous release cut it as a draft)
+gh pr edit "v{x}.{y}.{z}" --base main
+gh pr ready "v{x}.{y}.{z}"
+
+# Or create from scratch if needed:
 gh pr create --base main --head "v{x}.{y}.{z}" \
   --title "v{x}.{y}.{z}" \
   --body "$(cat <<'EOF'
@@ -66,91 +103,92 @@ gh pr create --base main --head "v{x}.{y}.{z}" \
 EOF
 )"
 
-gh pr merge --squash
+# Squash-merge — this is what fires release.yml
+gh pr merge "v{x}.{y}.{z}" --squash
 ```
 
-### 6. Tag and push
+**Title convention.** Bare `v{x}.{y}.{z}` (preferred) or `release: v{x}.{y}.{z}`.
+gh appends ` (#N)` on squash — release.yml's regex tolerates that suffix.
+
+---
+
+## Phase C — Verify the pipeline ran (post-squash)
 
 ```bash
-git checkout main
-git pull origin main
-git tag "v{x}.{y}.{z}"
-git push origin "v{x}.{y}.{z}"
+# Watch the run
+gh run list --workflow=release.yml --limit 3
+gh run watch                                  # interactive, optional
+
+# Verify each output landed
+gh release view "v{x}.{y}.{z}"                # step 5: GH release exists
+git fetch --prune origin && git tag --list "v{x}.{y}.{z}"   # step 4: tag exists
+gh pr view "v{next}"                          # step 8: draft PR for next patch
+git branch -r | rg "v{next}-dev\.0"           # step 9: dev.0 branch present
+gh issue list --milestone "v{next}"           # step 11: issues rolled forward
 ```
 
-### 7. Create GitHub release
+If a step failed mid-pipeline:
 
 ```bash
-gh release create "v{x}.{y}.{z}" \
-  --title "v{x}.{y}.{z}" \
-  --generate-notes
+# Inspect logs
+gh run view <run-id> --log-failed
+
+# Fix the root cause on main (or by hand for one-shot fixes)
+# Then re-dispatch:
+gh workflow run release.yml --ref main
 ```
 
-This triggers:
-- `release.yml` → appends crates.io/docs.rs links
-- `cargo-publish.yml` → publishes to crates.io (sequential)
-- `docker.yml` → builds and pushes Docker images (if tag-triggered)
+Every step is **idempotent** — re-runs skip already-done work. Safe by design.
 
-### 8. Verify deployment
+---
+
+## Phase D — Crates.io publication (Rust workspace projects only)
+
+The mechanical pipeline above handles the GitHub side. For Rust workspaces,
+the `release` event on `cargo-publish.yml` then sequentially publishes each
+crate to crates.io:
 
 ```bash
-# Check workflow runs
-gh run list --limit 5
+# Watch publish progress
+gh run list --workflow=cargo-publish.yml --limit 1
 
-# Verify crates.io publication
-# (may take a few minutes for each crate)
+# Spot-check on crates.io (takes a few minutes per crate)
+# https://crates.io/crates/<name>
 
-# Verify Docker images
-docker pull jo3mccain/axiom-node:latest
+# Docker images, if tag-triggered
+docker pull jo3mccain/axiom-node:{x}.{y}.{z}
 
-# Verify Fly.io (if auto-deployed)
-# Otherwise trigger manually:
+# Fly.io deploy, if applicable (manual dispatch)
 gh workflow run fly-io.yml
 ```
 
-## Post-Release
+---
 
-### 9. Clean up version branch
+## Phase E — Manual cleanup (rare)
 
-```bash
-# Should be auto-deleted by GH if using gh pr merge
-# Verify:
-gh api repos/{owner}/{repo}/branches | python3 -c "
-import json, sys
-for b in json.load(sys.stdin):
-    if b['name'].startswith('v{x}.{y}.{z}'):
-        print(f'STALE: {b[\"name\"]}')"
-```
+The pipeline handles tag/release/branches/milestones/version-bumps. The only
+manual tasks are:
 
-### 10. Close milestone
+1. **Project-memory updates.** If conventions changed during the cycle, edit
+   `CLAUDE.md` and any per-skill memories.
+2. **External announcements.** Discord, Twitter, blog — not the pipeline's job.
+3. **Major-version rollovers.** When `Z=9, Y=9` triggers a major bump, double-check
+   the `v{X+1}.0.0` plan file exists at `.artifacts/plans/v{X+1}00.plan.md`.
+   The pipeline cuts the branch but doesn't write the plan.
 
-```bash
-# Get milestone number
-gh api repos/{owner}/{repo}/milestones | python3 -c "
-import json, sys
-for m in json.load(sys.stdin):
-    if m['title'] == 'v{x}.{y}.{z}':
-        print(m['number'])"
+---
 
-# Close it
-gh api repos/{owner}/{repo}/milestones/{N} --method PATCH -f state=closed
-```
+## What you NEVER do manually anymore
 
-### 11. Start next version
+These were on the old checklist; release.yml owns them now. Doing them by
+hand will collide with the pipeline:
 
-```bash
-# Update workspace version
-# Edit Cargo.toml: version = "{next}"
-# Edit .axiom/config/axiom.toml if needed
-
-# Create version branch
-git checkout -b "v{next}"
-git push -u origin "v{next}"
-
-# Create first dev branch
-git checkout -b "v{next}-dev.0"
-git push -u origin "v{next}-dev.0"
-
-# Create milestone
-gh api repos/{owner}/{repo}/milestones --method POST -f title="v{next}"
-```
+- ~~`git tag v{x}.{y}.{z}` + `git push origin v{x}.{y}.{z}`~~ (step 4)
+- ~~`gh release create v{x}.{y}.{z} --generate-notes`~~ (step 5)
+- ~~Bumping `version` in `.claude-plugin/plugin.json`, `marketplace.json`, every `skills/*/plugin.json`, every `SKILL.md` frontmatter, and `README.md`~~ (step 6)
+- ~~`git checkout -b v{next}`~~ (step 6)
+- ~~`gh pr create --base main --head v{next} --draft`~~ (step 8)
+- ~~`git checkout -b v{next}-dev.0`~~ (step 9)
+- ~~`gh api .../milestones --method POST -f title="v{next}"`~~ (step 11)
+- ~~`gh issue edit <N> --milestone "v{next}"` for each open issue~~ (step 11)
+- ~~`git push origin --delete v{x}.{y}.{z}-dev.<i>` for each sprint~~ (step 10)

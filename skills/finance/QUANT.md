@@ -254,13 +254,17 @@ Better for asymmetric return distributions.
 ```
 MDD = max over all periods of (Peak − Trough) / Peak
 
-Calmar ratio = Annualized Return / MDD   [higher is better]
-
-Drawdown rules (applied to trading accounts):
-  After 1 loss:               reduce size 25%
-  After 2 consecutive losses: skip next cycle
-  After 3 consecutive losses: stop 2+ hours, reassess
+Calmar ratio   = Annualized Return / |MDD|              [higher is better]
+Ulcer Index    = √( mean( drawdown_t² ) )               [penalizes long, deep drawdowns]
+Martin ratio   = (E[R] − R_f) / Ulcer Index
 ```
+
+Drawdown shapes matter as much as magnitude: a single −20% spike recovers differently
+than a 12-month grind to −20%. Pair MDD with **time-under-water** (longest stretch below
+the previous high) for a fuller picture.
+
+Operational drawdown rules (per-trade size reduction, lockout policies) are a
+**trader-policy** concern and live in the `trader` skill, not here.
 
 ---
 

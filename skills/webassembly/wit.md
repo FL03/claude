@@ -185,6 +185,12 @@ type score = f64;
 type candles = list<candle>;
 ```
 
+**Keyword inventory (current canonical set):**
+
+`as`, `async`, `bool`, `borrow`, `char`, `constructor`, `enum`, `export`, `f32`, `f64`, `flags`, `from`, `func`, `future`, `import`, `include`, `interface`, `list`, `map`, `option`, `own`, `package`, `record`, `resource`, `result`, `s8`–`s64`, `static`, `stream`, `string`, `tuple`, `type`, `u8`–`u64`, `use`, `variant`, `with`, `world`.
+
+Identifiers are kebab-case (`reverse-string`). To use a keyword as an identifier, percent-escape it (`%enum`). `map<K, V>` and fixed-length `list<T, N>` are feature-gated; verify against your target WIT version.
+
 ### Resource
 
 Resources are opaque handles that cross the boundary by reference, not by value. They have a lifetime managed by the component model.
@@ -197,7 +203,37 @@ resource model {
 }
 ```
 
-Resources require more tooling care. For simple compute interfaces, pass data as records (value semantics) unless the object is genuinely expensive to copy.
+Resource handles cross with one of two modes:
+
+| Form | Semantics |
+|---|---|
+| `own<model>` (default — bare `model` in a signature) | Transfers ownership across the boundary; the receiver is responsible for dropping. |
+| `borrow<model>` | Temporary read access for the duration of the call; ownership stays with the caller. |
+
+```wit
+interface uses-model {
+    train:   func(m: borrow<model>, data: list<f64>);   // caller still owns m after the call
+    consume: func(m: own<model>);                        // m is transferred — caller can no longer use it
+}
+```
+
+Resources require more tooling care. For simple compute interfaces, pass data as records (value semantics) unless the object is genuinely expensive to copy or has identity that must be preserved across calls.
+
+### Async types — `future<T>` and `stream<T>`
+
+Newer WIT supports asynchronous values at the boundary:
+
+```wit
+interface async-io {
+    // A future<T> resolves to a single T (eventually).
+    read-one: func() -> future<result<list<u8>, string>>;
+
+    // A stream<T> yields zero or more T values over time.
+    tail-log: func() -> stream<string>;
+}
+```
+
+Functions can also be marked `async` to indicate they may block the calling task. These types are part of the component model's evolution toward concurrency and are gated under the WASI 0.3 / async proposal — verify availability against the runtime and the `@since`/`@unstable` annotations on the WIT package you're targeting.
 
 ### `use` — Importing Types from Other Interfaces
 
@@ -207,9 +243,58 @@ use types.{candle, context, signal};
 
 // Cross-package import:
 use my-org:host-types/types.{measurement};
+
+// Renaming on import to avoid a name clash:
+use my-org:host-types/types.{signal as host-signal};
 ```
 
 Imports connect across directory and package boundaries by package name — not by file path. The WIT toolchain resolves packages by name against the workspace's registered WIT paths (configured in `Cargo.toml` or via `wasm-tools`).
+
+### `include` — Composing Worlds
+
+A world can pull in the imports and exports of another world via `include`. The target world's imports become this world's imports; its exports become this world's exports. Plain-name conflicts can be resolved with `with`.
+
+```wit
+world platform {
+    import wasi:io/streams@0.2.0;
+    import wasi:clocks/monotonic-clock@0.2.0;
+}
+
+world my-component {
+    include platform;          // pulls in both wasi imports
+    import my-types;
+    export plugin;
+}
+
+// Resolving a name conflict when two included worlds export `run`:
+world combined {
+    include cli with { run as cli-run };
+    include daemon with { run as daemon-run };
+}
+```
+
+### Feature Gates — Stability Annotations
+
+WIT supports gate attributes that mark when an item entered (or left) the stable surface of a package. The toolchain enforces these against a target version of the package.
+
+| Gate | Meaning |
+|---|---|
+| `@since(version = X.Y.Z)` | Item is stable from `X.Y.Z` onward. |
+| `@unstable(feature = name)` | Item exists only when `feature = name` is enabled at build time — for active development. |
+| `@deprecated(version = X.Y.Z)` | Item is marked obsolete from `X.Y.Z`; consumers should migrate. |
+
+```wit
+@since(version = 0.2.0)
+interface streams { /* ... */ }
+
+@unstable(feature = experimental-cancel)
+interface cancellation { /* ... */ }
+
+@deprecated(version = 0.3.0)
+interface old-clocks { /* ... */ }
+```
+
+Gates resolve at compile time; they do not appear in the binary. A consumer asking the toolchain for "this package at version 0.2.0" sees exactly the items that were `@since` ≤ 0.2.0 and not `@deprecated` ≤ 0.2.0.
 
 ## Placement Rules
 
@@ -327,7 +412,14 @@ world compute-guest {
 
 ## Code Generation Note
 
-`wit-bindgen` generates guest-side Rust bindings from WIT (what the component must implement). `wasmtime::component::bindgen!` generates host-side bindings (how the host calls into the component). Both are Rust-specific — see the `rust` skill (`wasm.md`, `wasmtime-host.md`) for details on configuring and using these macros.
+WIT is consumed by two distinct codegen tools, one on each side of the boundary:
+
+| Tool | Side | Generates |
+|---|---|---|
+| `wit-bindgen` (multi-language) | **Guest** | Bindings the component must implement. Rust, C, Go, JS, Python. |
+| `wasmtime::component::bindgen!` (Rust macro) | **Host** | Bindings the Rust host uses to call into the component. |
+
+Both macros run at build time and re-read the WIT package on every rebuild — meaning a WIT change that doesn't trigger a rebuild of one side produces a runtime link error at instantiation. See the `wasmtime` sibling skill for the host-side `bindgen!` configuration and the `rust` skill / `cargo-component` crate docs for the guest-side Rust workflow.
 
 ## Inspection Commands
 

@@ -17,16 +17,21 @@ it is the authorization mechanism.
 
 ## Standing Authorization
 
-The operator has pre-authorized the following actions **without per-trade confirmation**:
+The operator has pre-authorized the following actions **without per-trade confirmation**.
+Tool IDs below are the underlying names; the Claude Code harness exposes them as
+`mcp__axiom__<name>`.
 
 ```
-✓ Execute buy orders via axiom_buy()       when all 9 gates pass
-✓ Execute sell orders via axiom_sell()     when all 9 gates pass
+✓ Execute buy orders via axiom_buy()           when all 9 gates pass
+✓ Execute sell orders via axiom_sell()         when all 9 gates pass
 ✓ Set stop-loss orders via axiom_stop_loss()
-✓ Redeem resolved winning positions via axiom_redeem()
-✓ Read positions, balance, pending orders at any time
-✓ Fetch market data, prices, and order books at any time
-✓ Cancel pending orders via axiom_cancel() if thesis has changed
+✓ Cancel a single pending order via axiom_cancel() if thesis has changed
+✓ Bulk-cancel resting orders via axiom_cancel_orders() during a thesis flip
+✓ Redeem resolved winnings via axiom_redeem() or axiom_redeem_slug()
+✓ Read account state at any time: balance / positions / pending / trades / status
+✓ Fetch market data at any time: search / info / book / midpoint / price / candles
+✓ Run scanner and watchlist tools: axiom_scan(), axiom_watchlist()
+✓ Engage / disengage the kill switch on hard stops: kill_engage() / kill_disengage()
 ```
 
 **Not authorized without explicit per-session confirmation:**
@@ -34,8 +39,9 @@ The operator has pre-authorized the following actions **without per-trade confir
 ✗ Total spend exceeding $20 in a single session
 ✗ Any single trade exceeding $5.00
 ✗ Trading markets flagged as politically sensitive (elections in active countries)
-✗ Modifying stop-loss orders on winning positions
+✗ Modifying stop-loss orders on winning positions (let stops trail or expire)
 ✗ Any action involving funds outside of USDC.e on Polygon
+✗ kill_switch_set() with custom levels (use kill_engage / kill_disengage instead)
 ```
 
 ---

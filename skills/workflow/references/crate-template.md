@@ -1,6 +1,18 @@
-# Crate Cargo.toml Template
+---
+type: reference
+parent: workflow
+---
 
-Complete template for any new crate within `crates/*`. Copy and adapt — do not deviate.
+# Crate Cargo.toml Template (axiom family)
+
+Complete template for any new crate within `crates/*` of the axiom-family
+Rust workspaces. **Copy and adapt — do not deviate.**
+
+> **What's here vs. what's elsewhere.** This file is *project policy* — the
+> feature gates, metadata sections, build script, and lib.rs shape every
+> axiom crate must follow. For *generic* cargo semantics (`Cargo.toml` schema,
+> workspace inheritance, feature-gate syntax, `[profile.*]`, `[patch]`), see
+> `rust/cargo.md` §2 and §4.
 
 ## Full Template
 
@@ -124,29 +136,29 @@ extern crate alloc;
 // pub use self::types::*;
 ```
 
-## Feature Gate Rules
+## Feature Gate Rules (axiom policy)
 
-1. **`default` must be minimal.** Usually just `["std"]`. Foundation crates (traits, math, core)
-   NEVER include heavy deps in defaults.
+These are project-policy rules layered on top of cargo's generic feature
+model. For the cargo-side mechanics of `dep:`, `?/`, and additive semantics,
+see `rust/cargo.md §4`.
 
-2. **`full` must include everything.** All optional features + `/full` propagation to all axiom deps.
-   This is what CI tests against.
-
-3. **`std` must propagate.** Every dependency that has a `std` feature gets `"dep/std"` in the
-   `std` feature list. Use `"dep?/std"` for optional deps.
-
+1. **`default` must be minimal.** Usually just `["std"]`. Foundation crates
+   (traits, math, core) NEVER include heavy deps in defaults.
+2. **`full` must include everything.** All optional features + `/full`
+   propagation to all axiom deps. This is what CI tests against.
+3. **`std` must propagate.** Every dependency that has a `std` feature gets
+   `"dep/std"` in the `std` feature list. Use `"dep?/std"` for optional deps.
 4. **Conditional propagation.** Use `?/` for optional dependencies:
    ```toml
    std = ["axiom-config?/std"]  # only propagate if axiom-config is enabled
    ```
-
-5. **`dep:` syntax for optional activation.** When a feature enables an optional dependency:
+5. **`dep:` syntax for optional activation.** When a feature enables an
+   optional dependency:
    ```toml
    config = ["dep:axiom-config"]  # activates the optional dependency
    ```
-
-6. **No underscore feature names.** Use kebab-case or single words: `config`, `json`, `tokio`.
-   Never `axiom_config` (underscore).
+6. **No underscore feature names.** Use kebab-case or single words: `config`,
+   `json`, `tokio`. Never `axiom_config` (underscore).
 
 ## Checklist for New Crates
 

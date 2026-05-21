@@ -1,7 +1,7 @@
 {
   "name": "polymarket",
-  "version": "5.0.4",
-  "description": "Polymarket exchange reference. Protocol mechanics, CLOB/Gamma/Data APIs, L1 vs L2 authentication, relayer architecture, market types, resolution, fees, and structural overview. Exchange-specific companion to the trader skill.",
+  "version": "5.1.0",
+  "description": "Polymarket exchange reference for Polygon prediction markets. Covers CTF-based binary + multi-outcome (negative-risk) markets, pUSD collateral, L1/L2 authentication, the relayer-v2 architecture, UMA optimistic-oracle resolution with 2h challenge window, per-market fee schedules, and the token_id / condition_id / question_id / slug identifier ladder. Ships companion files apis.md (Gamma / CLOB / Data / Relayer endpoint reference — Context7-grounded against docs.polymarket.com), strategies.md (per-category trading playbooks), and exploits.md (structural edge ledger). Exchange-specific companion to the trader skill.",
   "author": {
     "name": "FL03",
     "email": "j3mccain@gmail.com",

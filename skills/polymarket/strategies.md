@@ -5,6 +5,7 @@ description: |
   sequences for each market category. Designed to bootstrap @trader:axiom with exchange-
   specific opportunity pipelines. Load alongside exploits.md.
 type: reference
+version: 5.1.0
 ---
 
 # STRATEGIES — Polymarket Trading Playbooks
@@ -146,7 +147,7 @@ Point Spread  Favorite Win%   Notes
 
 ### Execution Notes
 - Sports markets auto-cancel at `gameStartTime` — ensure game hasn't started
-- 3-second matching delay: FAK orders still work, just submit and wait
+- 1-second matching delay on sports markets (per Polymarket docs): FAK orders still work, just submit and wait
 - Set stop-loss immediately: outcomes are binary, no averaging down
 
 ---
@@ -291,7 +292,9 @@ for event in events:
     
     if total < 0.97:
         gross_arb = 1.00 / total - 1.00
-        net_arb = gross_arb - 0.02 * len(prices)  # taker fee on each leg
+        # Query live taker fee per leg via CLOB /fee-rate/{token_id}
+        # (returns basis points; typical 10–30 bps, NOT 2%)
+        net_arb = gross_arb - (taker_fee_rate * len(prices))
         if net_arb > 0.03:
             print(f"ARBNEG: {event['title']} — {net_arb:.1%} net arb")
 ```
