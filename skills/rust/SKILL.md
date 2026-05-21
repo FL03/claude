@@ -1,19 +1,22 @@
 ---
 name: Rust
 slug: rust
-version: 5.0.4
+version: 5.1.0
 description: |
-  Make any agent, session, or cron fluent in idiomatic Rust. Covers ownership, borrowing,
-  lifetimes, error handling, async (tokio), traits, generics, trait objects, cargo + feature
-  gates, the no_std/alloc/std tier system, declarative and procedural macros (derive,
-  attribute, function-like; syn/quote/proc-macro2 triad), the cargo ecosystem (clippy,
-  rustfmt, cargo-expand, cargo-component, cargo-flamegraph, rustup toolchain management),
-  WASM toolchain (component model + wasmtime host), and pointers to docs.rs / crates.io
-  for ecosystem crate lookup. Attach this skill whenever producing or reviewing Rust.
-  Not project-specific and not style-opinionated — personal preferences live in the
-  `code-style` skill; project rules live in the project itself. Language-agnostic
-  WebAssembly material (WIT syntax, component model semantics, WASI) lives in the
-  `webassembly` skill; this one owns the Rust-side integration.
+  Make any agent, session, or cron fluent in idiomatic Rust. Covers ownership,
+  borrowing, lifetimes, error handling, async (tokio), traits, generics, trait
+  objects, the no_std/alloc/std tier system, declarative and procedural macros
+  (syn/quote/proc-macro2 triad), and pointers to docs.rs / crates.io for ecosystem
+  crate lookup. Companion reference files: `cargo.md` (full cargo surface —
+  commands, manifest, workspaces, features, profiles, .cargo/config.toml,
+  subcommand ecosystem, sccache, parallel-agent build workflows, JSON output)
+  and `rustc.md` (practical compiler knobs — codegen flags, RUSTFLAGS precedence,
+  target triples, lints, editions, sanitizers, cfg, --print, debug flags).
+  Attach this skill whenever producing or reviewing Rust. Not project-specific
+  and not style-opinionated — personal preferences live in the `code-style`
+  skill; project rules live in the project itself. Language-agnostic WebAssembly
+  material lives in the `webassembly` skill; Rust-side host embedding lives in
+  the `wasmtime` skill.
 metadata:
   openclaw:
     emoji: "🦀"
@@ -676,309 +679,51 @@ let grouped: HashMap<_, Vec<_>> = items.into_iter()
 
 ## VIII. Cargo & Feature Gates
 
-```toml
-# Workspace-level dependency (define once)
-[workspace.dependencies]
-serde = { version = "1", default-features = false }
-tokio = { version = "1", default-features = false }
+For the full cargo surface — commands, `Cargo.toml` schema, workspaces,
+`[profile.*]` tuning, `.cargo/config.toml`, registries, the subcommand
+ecosystem (clippy/rustfmt/expand/nextest/deny/audit/hack/machete/component/etc.),
+sccache, and machine-readable output — see `cargo.md` in this skill.
 
-# Crate-level (reference workspace)
-[dependencies]
-serde = { optional = true, workspace = true }
-tokio = { optional = true, workspace = true }
+Four feature-graph rules to memorize:
 
-# Feature gates
-[features]
-default = ["std"]
-std = ["serde?/std"]
-json = ["serde", "serde/derive", "serde_json"]
-http = ["reqwest", "tokio/rt-multi-thread", "tokio/macros"]
-full = ["default", "json", "http"]
-```
+- **Features are additive.** Cargo unifies features across the dep graph;
+  "feature A XOR feature B" breaks downstream.
+- **Every new dependency gets its own named feature.** Use `dep:` syntax
+  (`json = ["dep:serde_json"]`) so the dep doesn't auto-expose as a
+  feature with its own name.
+- **`<dep>?/<feat>`** forwards `<feat>` only when `<dep>` is already
+  enabled — the cleanest way to propagate downstream features through
+  optional deps.
+- **`default-features = false` at workspace level;** enable what you need
+  per-crate. Minimizes default compile surface.
 
-### Feature Gates as Compile-Time DI
-
-Feature flags are not just configuration — they are Rust's compile-time dependency-injection
-mechanism. The rules that keep them sane:
-
-- **Features are additive.** If you find yourself writing "feature A XOR feature B," refactor.
-  Cargo unifies features across the dep graph; mutually-exclusive features break downstream.
-- **Every new dependency gets its own named feature.** `hashbrown = ["dep:hashbrown"]` — never
-  gate a dep behind an abstract feature like `alloc` or `std`.
-- **Propagate with `?` syntax:** `"<workspace>-core?/json"` only forwards if the `<workspace>-core` dep is enabled.
-- **`default-features = false` at workspace level;** enable what you need per-crate. This
-  minimizes default compile surface.
-
-### `no_std` / `alloc` / `std` — The Three Tiers
-
-Library crates should support as many tiers as practical:
-
-| Tier | `core` only | `alloc` | `std` |
-|---|---|---|---|
-| `no_std` (bare-metal, some embedded) | ✓ | ✗ | ✗ |
-| `alloc` (heap, no OS services) | ✓ | ✓ | ✗ |
-| `std` (hosted OS) | ✓ | ✓ | ✓ |
-
-```rust
-#![cfg_attr(not(feature = "std"), no_std)]
-#[cfg(feature = "alloc")]
-extern crate alloc;
-```
-
-Libraries meant to be reused aim for `no_std + alloc` by default; add `std` as the ergonomic
-path. Binaries are always `std`. If the dep graph is hopelessly tied to `std`, don't pretend —
-drop the `no_std` claim rather than leaving broken feature combinations.
-
-### Common Commands
-
-```bash
-cargo fmt --all                                    # format everything
-cargo clippy --workspace --features full           # lint everything
-cargo build --workspace --features full            # build everything
-cargo test --workspace --features full             # test everything
-cargo build -p my-crate --features "json,http"     # build one crate with features
-cargo doc --workspace --no-deps --open             # generate docs
-```
-
-### Cargo Ecosystem & Toolchain
-
-The Rust toolchain ships with `rustup` (toolchain manager) and `cargo` (build system +
-package manager). Beyond the core, these tools form the working ecosystem:
-
-| Tool | What it does | Install |
-|------|-------------|---------|
-| **clippy** | Lint collection (~700 lints). `-D warnings` treats all as errors. Categories: `correctness`, `style`, `complexity`, `perf`, `nursery`. Configure via `#[allow(...)]` or `clippy.toml`. | Ships with rustup |
-| **rustfmt** | Deterministic formatting. `cargo fmt --all` formats the workspace. Configure via `rustfmt.toml` (e.g., `edition`, `max_width`, `imports_granularity`). | Ships with rustup |
-| **cargo-expand** | Expands all macros in a crate and prints the result. Essential for debugging derive macros and `macro_rules!`. Requires nightly: `cargo +nightly expand --lib -p my-crate`. | `cargo install cargo-expand` |
-| **cargo-component** | Build tool for WASM components. Generates a component (not a raw module) from a Rust crate with WIT bindings. The bridge between `cargo build` and the component model. | `cargo install cargo-component` |
-| **cargo-binstall** | Downloads pre-built binaries for cargo packages instead of compiling from source. `cargo binstall ripgrep` is 100x faster than `cargo install ripgrep` when a binary release exists. | `cargo install cargo-binstall` |
-| **cargo-flamegraph** | CPU profiling via `perf`/`dtrace`. `cargo flamegraph --bin my-app` produces an interactive SVG flamegraph. Always use `--release`. | `cargo install flamegraph` |
-| **cargo-nextest** | Faster test runner with per-test process isolation, retries, and JUnit output. Drop-in replacement: `cargo nextest run --workspace`. | `cargo binstall cargo-nextest` |
-| **cargo-deny** | Audit dependency licenses, ban specific crates, detect duplicate deps, check advisories. CI-ready: `cargo deny check`. | `cargo install cargo-deny` |
-| **cargo-udeps** | Find unused dependencies. Requires nightly: `cargo +nightly udeps --workspace`. | `cargo install cargo-udeps` |
-| **wasm-tools** | Swiss-army knife for `.wasm` files: validate, print (disassemble), compose, extract WIT. Not cargo-specific but essential for WASM workflows. | `cargo install wasm-tools` |
-| **rustup** | Manages toolchains (stable/nightly/specific versions), targets (`wasm32-wasip2`, `aarch64-unknown-linux-gnu`), and components. `rustup target add wasm32-wasip2` for cross-compilation. | System install |
-
-**`rustup` target management:**
-```bash
-rustup target list --installed                     # what targets are available
-rustup target add wasm32-wasip2                    # add WASM component target
-rustup target add aarch64-unknown-linux-gnu        # add ARM Linux cross-compile
-rustup component add rust-src                      # needed for some cross-compile scenarios
-rustup run nightly cargo expand                    # run a command under nightly
-```
-
-**docs.rs feature inspection** — before adding a dependency, check its feature matrix:
-`https://docs.rs/crate/{name}/latest/features`. This shows every feature flag, what deps
-it pulls in, and which features are default. Faster than reading Cargo.toml on GitHub.
-
-### Canonical pattern: trait + cfg-gated method + cfg-gated impls
-
-The cleanest single-file demonstration of feature-flag-thinking is a sealed marker
-trait with capability methods gated at the method level and impls gated at the
-impl-block level, each block matching exactly one feature:
-
-```rust
-pub trait RawMetaData {
-    private! {}  // sealed — downstream can't impl without seal! permission
-
-    #[cfg(feature = "json")]
-    fn into_json(self) -> serde_json::Value
-    where Self: Sized + serde::Serialize {
-        serde_json::to_value(self).expect("...")
-    }
-}
-
-#[cfg(feature = "hashbrown")]
-impl<K, V, S> RawMetaData for hashbrown::HashMap<K, V, S> { seal! {} }
-
-#[cfg(feature = "alloc")]
-impl<K, V> RawMetaData for alloc::collections::BTreeMap<K, V> { seal! {} }
-
-#[cfg(feature = "std")]
-impl<K, V> RawMetaData for std::collections::HashMap<K, V> { seal! {} }
-
-#[cfg(feature = "json")]
-impl RawMetaData for serde_json::Value {
-    seal! {}
-    fn into_json(self) -> serde_json::Value { self }  // specialization via cfg
-}
-```
-
-The rules this enforces:
-- Trait defined exactly once.
-- Capability methods gated at method level — trait stays minimal when feature off.
-- Impls of foreign types gated at impl-block level — each block names its required feature.
-- Each `cfg(feature = "X")` matches one feature flag (not `any(...)`); features compose by union.
-- Sealed traits use `private!{}` + `seal!{}` for self-documenting protection.
-- Specialization-style overrides done via cfg-gated impl, not runtime branching.
-
-Verify each feature combination compiles independently:
-```bash
-cargo check -p <crate> --no-default-features
-cargo check -p <crate> --no-default-features --features alloc
-cargo check -p <crate> --no-default-features --features "alloc,json"
-cargo check -p <crate> --features full
-```
-
-When you want to add a new capability or impl, this is the template. A live reference
-file matching this exact pattern in any workspace's `crates/traits/src/meta.rs`-style
-foundational crate runs ~50 lines and covers all of the above.
+The `no_std` / `alloc` / `std` three-tier system for library crates and
+the canonical sealed-trait + cfg-gated impl pattern are documented in
+`cargo.md §4`.
 
 ---
 
 ## IX. Parallel Agent Build Workflows
 
-When multiple agents run concurrently in the same workspace (or in git worktrees derived
-from it), Cargo's file locking and CPU saturation are the primary failure modes. This
-section covers the isolation and throttling patterns that keep agents from deadlocking or
-overwhelming the machine.
+The full operational discipline — `CARGO_TARGET_DIR` per-agent isolation,
+git-worktree-based lane isolation, `CARGO_BUILD_JOBS` throttling, scoped
+checks vs `--workspace`, wave-gate vs in-lane semantics, sccache for
+shared compilation cache, machine-readable output gating, and the
+canonical shell preamble with `trap … EXIT` cleanup — lives in
+`cargo.md §9`.
 
-### The core problem: `target/` contention
+Headline rules to memorize:
 
-Cargo holds a file lock on `target/` during any build operation. Two agents pointing at
-the same `target/` directory simultaneously produce one of three outcomes:
+- **Never set `CARGO_TARGET_DIR` globally.** Per-agent shell only.
+- **Cargo holds a file lock on `target/`.** Two agents on the same
+  `target/` serialize, error, or corrupt artifacts. Always isolate.
+- **Wave-gates run serial** on the main `target/`; **in-lane checks are
+  fully parallel** on per-agent `CARGO_TARGET_DIR`.
+- **Scope to `-p <crate>` inside lanes;** only the wave-gate touches
+  `--workspace`.
 
-1. **Silent wait** — Cargo queues; looks like a hang.
-2. **Error** — `could not acquire package cache lock`.
-3. **Artifact corruption** — rare but possible with a partial write racing a read.
-
-The fix is always: **give each agent its own `target/` directory.**
-
-### Isolation via `CARGO_TARGET_DIR`
-
-```bash
-# Pattern 1: branch-scoped target (recommended for git worktrees)
-export CARGO_TARGET_DIR="$(git rev-parse --show-toplevel)/target-$(git rev-parse --abbrev-ref HEAD | tr '/' '-')"
-cargo check -p axiom-bots
-
-# Pattern 2: /tmp ephemeral (transient agent tasks; no residue after reboot)
-export CARGO_TARGET_DIR="/tmp/axiom-target-agent-$(date +%s)"
-cargo check -p axiom-node --features serve,native
-
-# Pattern 3: named lane path (for conductor-dispatched sprint lanes)
-export CARGO_TARGET_DIR="/tmp/axiom-target-lane-A"
-cargo check -p axiom-engine --features full
-```
-
-**Never set `CARGO_TARGET_DIR` globally in `~/.cargo/config.toml`** — it would redirect
-the main session's builds too. Set it per-agent shell or per-invocation.
-
-### Worktree isolation (git worktree + per-worktree target)
-
-Git worktrees share the repository object store but give each branch its own working
-tree. Combined with a per-worktree `CARGO_TARGET_DIR`, agents get full isolation:
-
-```bash
-# Create a worktree for a lane
-git worktree add /tmp/wt-lane-a feature/lane-a
-
-# In the worktree shell — set a unique target dir
-cd /tmp/wt-lane-a
-export CARGO_TARGET_DIR=/tmp/target-lane-a
-cargo check -p axiom-bots --features full
-```
-
-The worktree shares `Cargo.lock` and the workspace `Cargo.toml` from the main checkout,
-so dep versions stay consistent across lanes.
-
-### Throttle cargo's internal parallelism
-
-`cargo check` spawns N compilation threads where N = logical CPU count. On a 16-core
-machine, 4 agents each running full-workspace checks spawn 64 threads — 4× capacity.
-Pass `-j` to limit:
-
-```bash
-# Rule of thumb: floor(total_cores / num_simultaneous_agents)
-# 8 cores, 4 agents → -j 2 per agent
-cargo check -p axiom-node --features serve,native -j 2
-```
-
-Or via env (applies to all cargo invocations in the shell):
-
-```bash
-export CARGO_BUILD_JOBS=2
-```
-
-### Prefer crate-scoped checks over `--workspace`
-
-`cargo check --workspace` compiles every crate. An agent touching only `crates/bots/`
-doesn't need to check `bin/gui/` or `crates/math/`. Scope the check to affected crates:
-
-```bash
-# Agent modifying axiom-bots and axiom-engine only:
-cargo check -p axiom-bots -p axiom-engine --features full
-
-# Agent modifying bin/node:
-cargo check -p axiom-node --features serve,native
-
-# Wave-gates are the ONLY time the full workspace check runs:
-cargo check --workspace --features full           # workspace gate
-cargo check -p axiom-node --features serve,native # node gate
-cargo check -p axiom-worker --features serve      # worker gate
-```
-
-### Wave-gate vs. in-lane checks
-
-| Context | Command | Parallelism |
-|---|---|---|
-| **In-lane validation** (agent verifying its own changes) | `cargo check -p <crate> -j N` with per-agent `CARGO_TARGET_DIR` | Full parallel — all agents concurrent |
-| **Wave-gate** (conductor validating all lanes) | Three canonical gates, one at a time, main `target/` | Serial — cargo-serial doctrine |
-| **Pre-commit / pre-push hook** | `cargo check -p <changed_crate>` | Fast, scoped, single invocation |
-
-The cargo-serial doctrine applies to **wave-gates only**. Coders run `cargo check`
-freely inside their own lane.
-
-### Shared compiler cache with `sccache`
-
-When agents repeatedly compile the same external crates (tokio, serde, axum), `sccache`
-acts as a shared object cache and turns redundant compilations into cache hits:
-
-```bash
-# Install once
-cargo binstall sccache
-
-# Enable per-agent (or set in .env / shell profile for all agents)
-export RUSTC_WRAPPER=sccache
-
-# Inspect hit rate
-sccache --show-stats
-```
-
-`sccache` handles its own internal locking — safe across concurrent agents. The final
-linking step still runs per-agent independently. High payoff on machines where agents
-share hardware but compile overlapping dependency graphs.
-
-### Machine-readable output for agent pipelines
-
-When an agent needs to parse results programmatically (count errors, extract spans,
-gate on zero-error exit):
-
-```bash
-# JSON lines on stderr — each diagnostic is a structured object
-cargo check -p axiom-bots --message-format=json 2>&1 \
-  | jq 'select(.reason == "compiler-message" and .message.level == "error")'
-
-# Simplest gate: exit code only (0 = clean)
-cargo check -p axiom-bots --features full -j 2 >/dev/null 2>&1 \
-  && echo "PASS" || echo "FAIL"
-```
-
-### Canonical parallel-agent shell preamble
-
-Paste this at the top of every agent shell invocation — sets isolation and throttling,
-cleans up on exit:
-
-```bash
-set -euo pipefail
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-')
-export CARGO_TARGET_DIR="/tmp/axiom-target-${BRANCH}-$$"   # $$ = PID for uniqueness
-export CARGO_BUILD_JOBS=2                                    # tune: floor(cores / agents)
-trap "rm -rf ${CARGO_TARGET_DIR}" EXIT                       # cleanup ephemeral target
-```
-
-`trap ... EXIT` ensures no multi-GB artifact directories accumulate in `/tmp` after
-agent sessions complete.
+For machine-readable output (`--message-format=json`, `cargo metadata`,
+exit-code gates), see `cargo.md §10`.
 
 ---
 
@@ -1055,127 +800,31 @@ More on static-vs-dynamic, object safety, GATs, variance: `typespace.md`.
 
 ## XI. Module Organization & Visibility
 
-Modules are how Rust scopes names AND code. Sloppy organization → endless nesting
-(`crate::a::b::c::d::e::Item`) → unreadable code. Disciplined organization → flat,
-extractable, testable subsystems. The doctrine connects WHAT to make a module from,
-WHERE to put it, and HOW visible to make each item.
+Disciplined modules → flat, extractable, testable subsystems. Sloppy
+organization → endless nesting (`crate::a::b::c::d::e::Item`) → unreadable
+code. The full doctrine — four-tier promotion ladder, inline-module
+convention, visibility ladder, path discipline, naming-depth smells —
+lives in `module-organization.md`.
 
-### The four-tier pattern: `crate | mod.rs | file | inline`
+Headline rules:
 
-| Tier | Manifest | When |
-|---|---|---|
-| **crate** | `Cargo.toml` + `src/lib.rs` | A subsystem with stable public API, ≥ 2 consumers, independent compile/test/version cadence — see §XI |
-| **mod.rs** | `src/foo/mod.rs` declares `pub mod a; pub mod b;` and provides a `pub use` facade | A directory of cohesive submodules; the natural extraction-candidate boundary |
-| **file** | `src/foo/a.rs` is the body of `foo::a` | Single-file leaf — types, impls, helpers in one place |
-| **inline** | `mod impls { … } mod types { … }` within ONE file | Compromise: partition a file's interfaces without exposing them; namespace is real, items are private unless `pub`-marked |
+- **Four-tier promotion ladder:** `inline` → `file` → `mod.rs` → `crate`.
+  Promote when a tier exceeds its capacity (~200 LOC inline, cohesive
+  submodules at file, independent compile/test cadence at mod.rs).
+- **Inline modules carry roles:** `mod types` for public types, `mod
+  traits` for traits, `mod impls` (private — never re-exported) for impl
+  blocks, `mod utils` for private helpers.
+- **`pub(crate)` is the default** for cross-module helpers. Prefer it
+  over `pub(super)`, which breaks on every file move.
+- **Absolute paths over relative:** `use crate::foo::bar` beats
+  `use super::super::foo::bar`. `super::super::` is a refactor signal.
+- **Naming-depth ceiling:** std hardly nests past depth 3
+  (`std::collections::hash_map::HashMap`). If your path is deeper than
+  std nests anywhere, the response is `pub use`-flatten, promote-to-crate,
+  or re-home.
 
-The progression is deliberate. Inline → file when the inline module exceeds ~200 LOC
-or grows cohesive sub-groupings. File → `mod.rs` when sibling submodules form a
-sub-system. `mod.rs` → crate per §XI's criteria. Promoting a tier is cheap; demoting
-later (to fold back) is also cheap. The cost is in the unwritten promote that should
-have happened — endless nested files paper over a missing crate boundary.
-
-### The inline `mod impls / types / traits / utils` convention
-
-```rust
-// src/foo.rs
-
-pub mod types {
-    //! Public types — re-exported at parent via #[doc(inline)]
-    pub struct Decision { /* ... */ }
-    pub struct DecisionBuilder { /* ... */ }
-}
-
-pub mod traits {
-    pub trait Decide { fn decide(&self) -> bool; }
-}
-
-mod impls {
-    //! PRIVATE — never exports anything. Hosts impl blocks for crate::foo::types::*
-    //! and crate::foo::traits::*. Connected to the lib only by the impls it provides.
-    use super::types::Decision;
-    impl Decision { pub fn new() -> Self { /* ... */ } }
-    impl super::traits::Decide for Decision { fn decide(&self) -> bool { true } }
-}
-
-mod utils {
-    //! Private helpers used by impls/.
-    pub(super) fn helper(n: u32) -> u32 { n + 1 }
-}
-
-#[cfg(test)]
-mod tests { /* inline tests for pub(crate) items */ }
-```
-
-At the parent (`lib.rs` or `mod.rs`):
-```rust
-pub mod foo;
-#[doc(inline)] pub use foo::types::*;
-#[doc(inline)] pub use foo::traits::*;
-```
-
-Why `mod impls` is private and never exports: implementations are an artifact of
-the type/trait, not a public concept. Exposing `crate::foo::impls::*` adds a useless
-re-export path that consumers would never reach for. Keeping it private flattens
-the public surface AND lets you add/remove impl files without breaking downstream.
-
-### Visibility ladder — `pub(crate)` is the default
-
-| Visibility | Reach | When |
-|---|---|---|
-| `pub` | Anywhere via the crate's public API | Items that ARE the crate's contract — `pub fn serve()`, public types, public traits |
-| `pub(crate)` | Anywhere within THIS crate | **The default for cross-module helpers.** Survives module reorganization. Reachable from inline `#[cfg(test)] mod tests` |
-| `pub(super)` | Parent module only | Rare. Only for items genuinely sibling-scoped — used by exactly one parent's other children |
-| `pub(in path)` | A specific named module subtree | Rarer still. Fine-grained lockdown for sensitive internals |
-| (private) | The defining module + descendants | The default. Most items live here |
-
-**The discipline:** prefer `pub(crate)` over `pub(super)`. `pub(super)` is brittle —
-moving the file breaks every reference. `pub(crate)` survives reorgs because the
-visibility scope is the whole crate, not a relative parent.
-
-**Test visibility split:**
-- `pub(crate)` items are visible to inline `#[cfg(test)] mod tests` co-located with the code.
-- `pub(crate)` items are NOT visible from `crates/<name>/tests/*.rs` — those exist outside the crate's privacy boundary, treating the crate as an external consumer.
-- Tests of internals → inline. Tests of the public API → dedicated `tests/` directory. The split is enforced by the visibility system itself.
-
-### Path discipline — absolute over relative
-
-```rust
-// DO
-use crate::types::DecisionRecord;
-use crate::supervisor::bots::quad_tick;
-
-// DO NOT
-use super::super::super::types::DecisionRecord;
-use super::super::supervisor::bots::quad_tick;
-```
-
-`super::` is for genuinely-local references (one level up to a sibling). The moment a
-path needs more than ONE `super::`, switch to absolute `crate::`. The grep test:
-`rg -n "super::super::"` should approach zero across the workspace.
-
-### Naming-depth as a code smell — std's own pattern
-
-`Type::Path::Components::Item` with > 4 `::` separators is a smell. This is
-grounded in std itself: **almost every std item lives at depth 2 or 3** in the
-canonical `{crate}::{module}::{submodule}::{Item}` shape:
-
-- Depth 2: `core::fmt::Display`, `core::ops::Add`, `core::iter::Iterator`, `std::time::Duration`, `std::process::Command`
-- Depth 3: `std::collections::hash_map::HashMap`, `std::sync::atomic::AtomicU32`, `std::sync::mpsc::channel`
-- Depth 4 (rare, principled): `std::os::unix::fs::OpenOptionsExt` — platform-specific extension traits
-
-Five-level paths essentially don't exist in std. If your workspace path is
-deeper than std nests anywhere, the response is one of:
-
-1. **Should `b` or `c` be its own crate?** Promote it (per §XI). Std does this — `alloc::vec::Vec` was promoted from `std` to `alloc` so it became reachable in no_std contexts.
-2. **Should the parent flatten via `pub use`?** Std does this aggressively — `Vec` is re-exported from `alloc` and `std` even though its canonical home is `alloc::vec::Vec`. `pub use crate::a::b::c::*` at the `a` level gives consumers a flat surface.
-3. **Should the type re-home?** It probably lives too deep relative to where it's used.
-
-The rule is std-observed, not opinion: `{crate}::{module}::{submodule}::{Item}` is the canonical shape, and anything beyond it is a refactor signal.
-
-### Reference
-
-Deep dive with worked examples, refactoring patterns, and migration recipes:
+The full discipline (with worked examples, the inline `mod impls/types/
+traits/utils` convention, and migration recipes) is in
 `module-organization.md`.
 
 ---
@@ -1226,65 +875,36 @@ Advanced material: `advanced-traps.md`.
 
 ## XIV. Macros
 
-Two macro systems, both running at compile time. Neither bypasses the type system — they
-generate code that the compiler then checks as normal Rust.
+Two macro systems, both compile-time, both generating code the compiler
+then type-checks as normal Rust. Full depth — fragment-specifier tables,
+hygiene rules, recursive `macro_rules!`, proc-macro crate structure,
+syn/quote/proc-macro2 patterns, helper attributes, `trybuild` testing
+— lives in `macros.md`.
 
-### Declarative (`macro_rules!`)
-
-Pattern-match on syntax fragments. Fast to write, partially hygienic (local bindings don't
-leak, but paths use the caller's namespace). Key fragment specifiers: `$x:expr`, `$x:ty`,
-`$x:ident`, `$x:tt` (universal fallback), `$x:pat`, `$x:path`, `$x:vis`. Repetition:
-`$(...)*` (zero+), `$(...)+` (one+), `$(...)? ` (optional). Use `$crate` for paths that
-must resolve from the defining crate.
-
-```rust
-macro_rules! hash_map {
-    ($($key:expr => $val:expr),* $(,)?) => {{
-        let mut map = hashbrown::HashMap::new();
-        $(map.insert($key, $val);)*
-        map
-    }};
-}
-```
-
-### Procedural Macros
-
-Rust code that transforms a `TokenStream` into a new `TokenStream`. Lives in a dedicated
-crate (`proc-macro = true` in Cargo.toml). The **syn + quote + proc-macro2** triad is the
-standard toolkit: `syn` parses token streams into structured AST nodes (`DeriveInput`,
-`ItemFn`), `quote!{ ... }` turns Rust-like syntax back into tokens, and `proc-macro2`
-enables unit-testing outside the proc-macro context.
-
-**Three flavors:**
+The three flavors and what each can do:
 
 | Flavor | Signature | Power |
-|--------|-----------|-------|
-| `#[derive(X)]` | `fn(TokenStream) -> TokenStream` | **Appends** an impl block. Cannot modify the original item. |
-| `#[attribute]` | `fn(attr: TokenStream, item: TokenStream) -> TokenStream` | **Replaces** the annotated item — can modify or wrap it. |
-| `function_like!()` | `fn(TokenStream) -> TokenStream` | Full control — input can be any token stream, not necessarily valid Rust. |
+|---|---|---|
+| `macro_rules!` (declarative) | pattern-based | Variadic calls, table-driven tests, DSL syntax. Partially hygienic. |
+| `#[derive(X)]` (proc-macro) | `fn(TokenStream) -> TokenStream` | **Appends** an impl block. Cannot modify the annotated item. |
+| `#[attribute]` (proc-macro) | `fn(attr, item) -> TokenStream` | **Replaces** the item — can modify, wrap, or rewrite it. |
+| `function_like!()` (proc-macro) | `fn(TokenStream) -> TokenStream` | Full control — input need not be valid Rust. |
 
-**Error reporting:** `syn::Error::new_spanned(tokens, "message")` produces a compiler error
-pointing at the exact span in the user's code. Always use this over `panic!()` in proc macros.
+When to reach for which:
+- **Prefer a function** unless you need syntactic positions a function
+  can't reach: new bindings, control flow, type-level manipulation, or
+  repetition over heterogeneous types.
+- **`macro_rules!` for:** variadic calls, table-driven test generation,
+  compile-time assertions, small DSLs.
+- **Proc macros for:** deriving trait impls, code generation from schemas,
+  annotating functions with instrumentation/routing/validation.
+- **Never hide control flow** in a macro (a silent `return` or `break` is
+  invisible at the call site).
 
-**Testing:** `cargo +nightly expand` to see expansions; `trybuild` crate for snapshot compile
-tests; factor logic into `proc_macro2::TokenStream` functions for unit-testability.
-
-### Rules of Thumb
-
-- **Prefer a function over a macro** unless you need syntactic positions a function can't reach
-  (new bindings, control flow, type-level manipulation, repetition).
-- **`macro_rules!` for** variadic calls, table-driven test generation, compile-time assertions,
-  DSL construction (routing tables, SQL templates).
-- **Proc macros for** deriving trait implementations, code-generation from schemas, annotating
-  functions with instrumentation/routing/validation.
-- **Document macro-generated names.** A `#[derive(Builder)]` that introduces a `FooBuilder` type
-  should say so in its doc comment — readers can't see the synthesis otherwise.
-- **Don't hide control flow.** A macro that silently `return`s or `break`s is invisible at the
-  call site — readers can't reason about the surrounding function.
-
-Deep dive: `macros.md` — fragment specifier table, recursive macros, proc-macro crate
-structure, `syn` field iteration patterns, helper attributes, re-export convention, the
-full decision matrix.
+Deep dive: `macros.md` — fragment specifier table, hygiene rules, recursive
+macros, proc-macro crate structure with the syn/quote/proc-macro2 triad,
+field iteration patterns, helper attributes, `trybuild` testing, re-export
+convention.
 
 ---
 
@@ -1384,6 +1004,21 @@ Progressive disclosure — open these only when the task enters their area.
   recursion, hygiene), procedural macros (derive/attribute/function-like, syn/quote/proc-macro2
   triad, field iteration, error reporting, testing with trybuild), proc-macro crate structure,
   re-export convention, decision matrix.
+- **`module-organization.md`** — the four-tier promotion ladder depth, inline `impls/types/traits/utils`
+  convention, visibility ladder, absolute-path discipline, naming-depth as a code smell.
+
+### Tooling
+
+- **`cargo.md`** — full cargo surface: commands, `Cargo.toml` schema, workspaces, feature
+  gates, `[profile.*]`, `.cargo/config.toml`, registries/publishing, the subcommand
+  ecosystem (clippy/rustfmt/expand/nextest/deny/audit/hack/machete/component/etc.),
+  sccache, parallel-agent build workflows, machine-readable output (`--message-format=json`,
+  `cargo metadata`). Context7-grounded against The Cargo Book.
+- **`rustc.md`** — practical compiler knobs: codegen flags (`-C` family), RUSTFLAGS
+  precedence, target triples and tiers, lint levels and groups, editions (2015/2018/2021/2024),
+  sanitizers, conditional compilation (`cfg` predicates), `--print` queries, debug flags
+  (`--emit`, `-Z time-passes`, `-Z print-type-sizes`, `-Z self-profile`).
+  Context7-grounded against The Rustc Book and The Rust Reference.
 
 ### Ecosystem — docs.rs is the source of truth
 
@@ -1400,31 +1035,20 @@ Reach for those over memory whenever the question is "does this crate have X?" o
 features does X gate?". Examples: `docs.rs/tokio/latest/tokio/all.html`,
 `docs.rs/crate/axum/latest/features`, `docs.rs/sqlx/latest/sqlx/all.html`.
 
-### WebAssembly (Rust side)
-
-`webassembly/` (sibling skill) owns the language-agnostic layer — WIT syntax, component
-model semantics, WASI capability model, binary format. Cross to it for any "what does this
-WIT contract MEAN" / "what capabilities does this component need" question.
-
-These two files cover the Rust-side integration only:
-
-- **`wasm.md`** — entry point: target choice (`wasm32-wasip2` etc.), `cargo-component` vs
-  `wasm-pack`, `wit-bindgen` vs `wasm-bindgen` distinction, single-file component crate
-  layout, dual native+wasm32 build pattern, feature structure. Cross-references to
-  `webassembly/` for the conceptual layer.
-- **`wasmtime-host.md`** — host-side embedding recipe: `Engine`/`Store`/`Linker`/`Component`,
-  `bindgen!` macro, WASI capability grants, `&self` ergonomics via `Mutex`. The canonical
-  pattern for any Rust-hosted WASM runtime.
-
-For everything else (target flags, cargo-component CLI, wit-bindgen macro syntax,
-wasm-bindgen browser interop, allocator/CI patterns) — go to docs.rs for the crate or to
-the `webassembly` skill for conceptual material. No per-tool cheatsheets.
-
 ### Related skills
 
-- **`code-style`** (sibling skill) — personal preferences layer (e.g. MSRV floor, hashbrown
-  over std HashMap, the user's preferred module convention, naming idioms). Load it whenever
+- **`code-style`** (sibling skill) — personal preferences layer (MSRV floor, hashbrown over
+  std HashMap, the user's preferred module convention, naming idioms). Load it whenever
   producing Rust the user will read — this skill stays project- and style-agnostic.
-- **`webassembly`** (sibling skill) — WIT syntax, component model semantics, WASI capability
-  model, binary format. Reference from any of the WASM files above when the question is
-  language-agnostic.
+- **`webassembly`** (sibling skill) — language-agnostic WebAssembly: WIT syntax, component
+  model semantics, WASI capability model, binary format. Cross to it for "what does this
+  WIT contract MEAN" / "what capabilities does this component need".
+- **`wasmtime`** (sibling skill) — Rust-side host embedding: `Engine`/`Store`/`Linker`/
+  `Component`, `bindgen!` macro, WASI capability grants, `&self` ergonomics via `Mutex`. Cross
+  to it for any host-side WASM runtime question.
+- **`workflow`** (sibling skill) — branching conventions, GH issue/PR/milestone management,
+  CI/CD patterns, Rust workspace scaffolding, sprint/phase structure.
+
+For the Rust-side WASM toolchain (target flags, `cargo-component` CLI, `wit-bindgen` macro
+syntax, `wasm-bindgen` browser interop) — go to docs.rs for the crate or to the
+`webassembly` / `wasmtime` skills. No per-tool cheatsheets live in this skill.

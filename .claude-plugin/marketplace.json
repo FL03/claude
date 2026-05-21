@@ -9,7 +9,7 @@
   },
   "homepage": "https://github.com/FL03/claude",
   "repository": "https://github.com/FL03/claude",
-  "version": "5.0.4",
+  "version": "5.1.0",
   "plugins": [
     {
       "name": "finance",
@@ -45,8 +45,8 @@
     },
     {
       "name": "rust",
-      "version": "5.0.4",
-      "description": "Make any agent fluent in idiomatic Rust. Covers ownership, borrowing, lifetimes, async, traits, macros, the no_std/alloc/std tier system, cargo ecosystem, and WASM toolchain.",
+      "version": "5.1.0",
+      "description": "Make any agent fluent in idiomatic Rust. Covers ownership, borrowing, lifetimes, async, traits, the no_std/alloc/std tier system, and macros. Ships dedicated cargo.md and rustc.md companion references (Context7-grounded against The Cargo Book and The Rustc Book).",
       "author": {
         "name": "FL03"
       },
