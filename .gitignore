@@ -1,0 +1,189 @@
+## GENERAL
+**/.artifacts/data
+**/.artifacts/logs
+**/.artifacts/tmp
+**/.cache
+**/.DS_STORE
+**/.logs
+**/coverage
+**/debug
+**/dist
+**/logs
+**/release
+**/tmp
+
+### FILE EXTENSIONS
+
+*.bak
+*.bak.*
+
+*.db
+*.db.*
+*.db-*
+
+*.sqlite
+*.sqlite.*
+
+*.sqlite3
+*.sqlite3.*
+
+*.zip
+*.zip.*
+
+### WORKTREES
+**/worktrees
+**/.worktrees
+
+### CLAUDE
+**/.claude/settings.local.*
+
+## Configuration Files
+**/.config/*.config.*
+
+!**/.config/example.config.*
+!**/.config/default.config.*
+
+**/settings.local.*
+
+### DOTENV
+*.env
+*.env.*
+
+**/*.envrc.*
+**/*.envrc
+
+!.env.default*
+!*.env.default.*
+
+!*.default.env
+!*.default.env.*
+
+!*.env.example
+!*.env.example.*
+
+!*.example.env
+!*.example.env.*
+
+# CODE EDITORS
+
+### Intellij
+**/.idea
+
+*.iml
+*.iws
+*.ipr
+
+### Visual Studio Code
+**/.vscode
+**/.vscode-test
+
+!**/.vscode/launch.json
+!**/.vscode/settings.json
+
+## Operating Systems
+
+### Nix
+!**/flake.lock
+
+### Windows Subsystem for Linux (WSL)
+**/*:Zone.identifier
+
+## ** File Extensions **
+*.bak
+*.bak.*
+
+*.bk
+*.bk.*
+
+*.db
+*.db.*
+
+*.log
+*.log.*
+
+*.pem
+*.pem.*
+
+*.gz
+*.gz.*
+
+*.sqlite
+*.sqlite.*
+
+*.sqlite3
+*.sqlite3.*
+
+*.zip
+*.zip.*
+
+**/*.mcp.json
+
+
+# **** Language Specific ****
+## Python
+**/__pycache__
+**/.pytest_cache
+**/venv
+
+## Rust
+**/target
+
+!**/Cargo.lock
+
+**/*.rs.bk
+**/*.rs.bk.*
+
+## Node.js
+**/.DS_STORE
+**/build
+**/node_modules
+
+**/.pnp
+**/.pnp.*
+
+### package managers 
+**/.yarn/install-state.gz
+!**/package-lock.json
+**/npm-debug.log
+
+**/yarn-error.log
+**/yarn-debug.log
+
+## TypeScript
+**/*.tsbuildinfo
+
+### Testing Tools
+
+#### Jest
+**/.swc
+**/coverage
+
+### **** Frameworks ****
+
+#### Deno
+**/deno.json
+**/deno.jsonc
+
+#### Next.js
+**/.next
+**/out
+
+**/next-env.d.ts
+
+### OpenNext (Cloudflare)
+**/.open-next
+**/.wrangler
+**/.vercel
+
+### Supabase
+**/supabase/temp
+
+### Vercel
+**/.vercel
+.vercel
+.env*.local
+
+### Hardhat
+**/contracts/artifacts
+**/contracts/cache
+**/typechain-types
