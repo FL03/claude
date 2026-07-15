@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "fl03",
+  "name": "pzzld",
   "description": "A collection of custom Claude plugins seeking to maximize the tools native to the Claude harness in meaningful manners.",
   "owner": {
     "name": "FL03",
