@@ -1,97 +1,4 @@
-## GENERAL
-**/.artifacts/data
-**/.artifacts/logs
-**/.artifacts/tmp
-**/.cache
-**/.DS_STORE
-**/.logs
-**/coverage
-**/debug
-**/dist
-**/logs
-**/release
-**/tmp
-
-### FILE EXTENSIONS
-
-*.bak
-*.bak.*
-
-*.db
-*.db.*
-*.db-*
-
-*.sqlite
-*.sqlite.*
-
-*.sqlite3
-*.sqlite3.*
-
-*.zip
-*.zip.*
-
-### WORKTREES
-**/worktrees
-**/.worktrees
-
-### CLAUDE
-**/.claude/settings.local.*
-
-## Configuration Files
-**/.config/*.config.*
-
-!**/.config/example.config.*
-!**/.config/default.config.*
-
-**/settings.local.*
-
-### DOTENV
-*.env
-*.env.*
-
-**/*.envrc.*
-**/*.envrc
-
-!.env.default*
-!*.env.default.*
-
-!*.default.env
-!*.default.env.*
-
-!*.env.example
-!*.env.example.*
-
-!*.example.env
-!*.example.env.*
-
-# CODE EDITORS
-
-### Intellij
-**/.idea
-
-*.iml
-*.iws
-*.ipr
-
-### Visual Studio Code
-**/.vscode
-**/.vscode-test
-
-!**/.vscode/launch.json
-!**/.vscode/settings.json
-
-## Operating Systems
-
-### Nix
-!**/flake.lock
-
-### Windows Subsystem for Linux (WSL)
-**/*:Zone.identifier
-
-## ** File Extensions **
-*.bak
-*.bak.*
-
+# General
 *.bk
 *.bk.*
 
@@ -116,53 +23,157 @@
 *.zip
 *.zip.*
 
-**/*.mcp.json
+
+# ----- [DIRECTORIES] -----
+**/.DS_STORE/
+**/.archive/
+**/cache/
+**/logs/
+
+# ----- [CLAUDE] -----
+.claude/worktrees/
 
 
-# **** Language Specific ****
+# ----- [SHEPHERD] -----
+.shepherd/*.db
+.shepherd/*.db-*
+.shepherd/*.lock
+
+.shepherd/tmp/
+.shepherd/logs/
+.shepherd/cache/
+.shepherd/dispatch/
+.shepherd/discoveries/
+.shepherd/insights/
+.shepherd/pauses/
+.shepherd/runs/
+.shepherd/memory/
+
+# toolkit.json is TRACKED — explicitly un-ignore in case *.json patterns are added later
+!.artifacts/toolkit.json
+
+# Dev-only tooling output (scripts/ — not part of the shipped plugin surface)
+/scripts/.filetree.json
+!.myfi/toolkit.json
+
+
+
+## Directories
+**/.artifacts/cache/
+**/.artifacts/temp/
+**/.artifacts/uploads/
+
+!**/.artifacts/docs
+!**/.artifacts/.gitkeep
+
+**/.myfi/cache/
+**/.myfi/temp/
+**/.myfi/uploads/
+
+!**/.myfi/docs
+!**/.myfi/.gitkeep
+
+**/.cache/
+**/coverage/
+**/build/
+**/coverage/
+**/dist/
+**/out/
+**/logs/
+**/tmp/
+
+## Development
+
+### Config Files
+**/.config/*.config.*
+
+!**/.config/default.config.*
+!**/.config/docker.config.*
+!**/.config/xtask.config.*
+
+### dotenv
+*.env
+*.env.*
+
+**/*.envrc.local
+**/local.envrc
+
+!*default.env*
+!*.env.default
+
+!*example.env*
+!*.env.example
+
+### IDEs
+
+#### Atom
+**/.atom
+
+#### JetBrains
+**/.idea/
+
+*.iml
+*.ipr
+*.iws
+
+#### Visual Studio Code
+**/.vscode/
+
+!**/.vscode/settings.json
+
+## Operating Systems
+
+### Linux
+
+#### NixOS
+!**/flake.lock
+
+**/.nix-channels
+**/.nix-defexpr
+**/.nix-profile
+**/.nix
+
+### Windows
+
+#### Windows Subsystem for Linux (WSL)
+*:Zone.Identifier
+
+# Language Specific
+
 ## Python
-**/__pycache__
-**/.pytest_cache
-**/venv
+**/__pycache__/
+**/venv/
+
+*.pyc
+*.pyc.*
+
+*.pyo
+*.pyd
 
 ## Rust
 **/target
 
+!.cargo/config.toml
 !**/Cargo.lock
 
-**/*.rs.bk
-**/*.rs.bk.*
+*.rs.bk
 
-## Node.js
+# *.lock
+*-lock.json
+
+## Node.JS
 **/.DS_STORE
 **/build
 **/node_modules
 
+*.tsbuildinfo
+
 **/.pnp
 **/.pnp.*
 
-### package managers 
 **/.yarn/install-state.gz
-!**/package-lock.json
-**/npm-debug.log
 
-**/yarn-error.log
-**/yarn-debug.log
-
-## TypeScript
-**/*.tsbuildinfo
-
-### Testing Tools
-
-#### Jest
-**/.swc
-**/coverage
-
-### **** Frameworks ****
-
-#### Deno
-**/deno.json
-**/deno.jsonc
+### Frameworks
 
 #### Next.js
 **/.next
@@ -170,20 +181,9 @@
 
 **/next-env.d.ts
 
-### OpenNext (Cloudflare)
-**/.open-next
-**/.wrangler
+# Services
+
+## Vercel
 **/.vercel
-
-### Supabase
-**/supabase/temp
-
-### Vercel
-**/.vercel
-.vercel
-.env*.local
-
-### Hardhat
-**/contracts/artifacts
-**/contracts/cache
-**/typechain-types
+.DS_Store
+/scripts/.xref.json
