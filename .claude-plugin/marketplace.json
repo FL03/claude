@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "fl03",
-  "description": "An all-in-one financial plugin with a wall-street grade financial planner alongside a custom toolkit and supported with various related skills ensuring a QUANT level understanding of market conditions.",
+  "description": "A collection of custom Claude plugins seeking to maximize the tools native to the Claude harness in meaningful manners.",
   "owner": {
     "name": "FL03",
     "email": "joe@pzzld.org",
