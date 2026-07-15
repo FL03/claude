@@ -16,7 +16,7 @@
       "category": "finance",
       "description": "An all-in-one financial plugin with a wall-street grade financial planner alongside a custom toolkit and supported with various related skills ensuring a QUANT level understanding of market conditions.",
       "homepage": "https://github.com/FL03/claude-finance",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "source": {
         "source": "github",
         "repo": "FL03/claude-finance"
