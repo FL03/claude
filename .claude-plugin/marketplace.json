@@ -1,143 +1,37 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "fl03-skills",
-  "description": "FL03's personal skill marketplace for Claude Code \u2014 covering Rust, WebAssembly, quantitative finance, Polymarket trading, workflow orchestration, and more. Each skill is independently installable.",
+  "name": "fl03",
+  "description": "An all-in-one financial plugin with a wall-street grade financial planner alongside a custom toolkit and supported with various related skills ensuring a QUANT level understanding of market conditions.",
   "owner": {
     "name": "FL03",
-    "email": "j3mccain@gmail.com",
+    "email": "joe@pzzld.org",
     "url": "https://github.com/FL03"
   },
   "homepage": "https://github.com/FL03/claude",
   "repository": "https://github.com/FL03/claude",
-  "version": "5.1.0",
+  "version": "0.0.2",
   "plugins": [
     {
-      "name": "finance",
-      "version": "5.1.0",
-      "description": "Research-grade quantitative finance. PhD-level toolkit covering stochastic calculus, derivative pricing (Black-Scholes + Greeks, Heston, Merton jump-diffusion, American options), risk metrics (VaR/CVaR/Sharpe/Sortino/Calmar), portfolio theory, term-structure models, Monte Carlo with variance reduction, and backtesting. Grounded against Hull / Bjork / Wilmott / Glasserman.",
-      "author": {
-        "name": "FL03"
-      },
+      "name": "myfi",
       "category": "finance",
+      "description": "An all-in-one financial plugin with a wall-street grade financial planner alongside a custom toolkit and supported with various related skills ensuring a QUANT level understanding of market conditions.",
+      "homepage": "https://github.com/FL03/claude-finance",
+      "version": "0.0.2",
       "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/finance",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
+        "source": "github",
+        "repo": "FL03/claude-finance"
+      }
     },
     {
-      "name": "polymarket",
-      "version": "5.1.0",
-      "description": "Polymarket exchange reference for Polygon prediction markets. Covers pUSD collateral, CTF binary + negative-risk markets, L1/L2 authentication, relayer-v2, UMA optimistic-oracle resolution with 2h challenge window, per-market fees, and the token_id / condition_id ladder. Ships dedicated apis.md, strategies.md, and exploits.md companion files (Context7-grounded against docs.polymarket.com).",
-      "author": {
-        "name": "FL03"
-      },
-      "category": "finance",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/polymarket",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
-    },
-    {
-      "name": "rust",
-      "version": "5.1.0",
-      "description": "Make any agent fluent in idiomatic Rust. Covers ownership, borrowing, lifetimes, async, traits, the no_std/alloc/std tier system, and macros. Ships dedicated cargo.md and rustc.md companion references (Context7-grounded against The Cargo Book and The Rustc Book).",
-      "author": {
-        "name": "FL03"
-      },
+      "name": "shepherd",
       "category": "development",
+      "description": "Sprint-by-sprint version-cycle conductor. Six-agent flock (engineer, critic, coder, auditor, worker, discovery) on a three-section pipeline (INTRODUCTION → BODY → CLOSE), with hardened hooks, hypothesis-driven audits, and a per-project SQLite context registry. Configured per-project via .claude/shepherd.toml.",
+      "homepage": "https://github.com/FL03/shepherd",
+      "version": "6.3.3",
       "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/rust",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
-    },
-    {
-      "name": "trader",
-      "version": "5.1.0",
-      "description": "Generalized autonomous trading agent. 9-gate safety contract, 7-step cycle, drawdown rules, operator autonomy grant, and full Axiom MCP tool reference (verified against the axiom-mcp server source). Exchange-agnostic \u2014 pair with @polymarket for opportunity playbooks.",
-      "author": {
-        "name": "FL03"
-      },
-      "category": "finance",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/trader",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
-    },
-    {
-      "name": "typing",
-      "version": "5.1.0",
-      "description": "Language-agnostic advanced type-system knowledge. Covers parametric/ad-hoc/subtype/row polymorphism, variance, kinds, HKTs, type classes vs traits, GADTs, type-level programming, dependent and refinement types across Haskell, Idris/Agda/Lean, OCaml, Scala, TypeScript, F*, and Liquid Haskell. Ships dependent-types.md and type-level-programming.md companion references.",
-      "author": {
-        "name": "FL03"
-      },
-      "category": "development",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/typing",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
-    },
-    {
-      "name": "wasmtime",
-      "version": "5.1.0",
-      "description": "Rust-side host embedding of wasmtime. Engine/Store/Linker/Component lifecycle, bindgen! macro for WIT, WASI capability grants, &self ergonomics via Arc<Mutex<...>>, hot-swap, error/trap handling, AOT precompile, async support, and debug surfaces. Context7-grounded against /bytecodealliance/wasmtime.",
-      "author": {
-        "name": "FL03"
-      },
-      "category": "development",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/wasmtime",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
-    },
-    {
-      "name": "webassembly",
-      "version": "5.1.0",
-      "description": "Language-agnostic WebAssembly knowledge silo. WIT syntax (feature gates @since/@unstable/@deprecated, async stream/future, own/borrow resource handles, include directive), component model semantics + canonical ABI, WASI 0.2 capability model with the wasm32-wasip2 target, WASI 0.3 / wasm32-wasip3 trajectory, and the binary format. Companion to the wasmtime sibling skill (Rust host embedding).",
-      "author": {
-        "name": "FL03"
-      },
-      "category": "development",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/webassembly",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
-    },
-    {
-      "name": "workflow",
-      "version": "5.1.0",
-      "description": "Development lifecycle and release management. v{x}.{y}.{z}-dev.{i} branching with explicit rebase/squash decision tree, the automated patch-release pipeline (release.yml \u2014 tag, release, next-patch cut, version bumps, dev.0, orphan sweep, milestone roll), GH issue/PR/milestone conventions, Rust workspace scaffolding policy, and the version/sprint plan-file structure. Project-policy companion to the rust skill; cargo command semantics live in rust/cargo.md.",
-      "author": {
-        "name": "FL03"
-      },
-      "category": "development",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/FL03/claude.git",
-        "path": "skills/workflow",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/FL03/claude"
+        "source": "github",
+        "repo": "FL03/shepherd"
+      }
     }
   ]
 }

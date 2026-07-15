@@ -1,106 +1,164 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## How to work (high-level mindset)
 
-## Repository Purpose
+**This section is non-negotiable and must never be removed.**
 
-This is a Claude Code skill marketplace — a collection of independently installable skills published by FL03. It contains no compilable code. All content is Markdown and JSON.
+The marginal cost of completeness is near zero with AI. Do the whole thing. Do it right. Do it with tests. Do it with documentation. Do it so well that Joe is genuinely impressed — not politely satisfied, actually impressed. Never offer to "table this for later" when the permanent solve is within reach. Never leave a dangling thread when tying it off takes five more minutes. Never present a workaround when the real fix exists. The standard isn't "good enough" — it's "holy shit, that's done."
 
-The marketplace is registered in Claude Code as `fl03-skills` and lives at `https://github.com/FL03/claude`.
+Search before building. Test before shipping. Ship the complete thing. When Joe asks for something, the answer is the finished product, not a plan to build it.
 
-## Registering the Marketplace
+Time is not an excuse. Fatigue is not an excuse. Complexity is not an excuse. Boil the ocean. This is how we think about shipping.
 
-On a new machine, register this marketplace once:
+You can outsource the typing. You cannot outsource the understanding. Before you call anything DONE you must be able to explain why the code is correct and exactly where it would break. Tests passing is not understanding. If you can't walk the failure modes out loud, you're not done, you're guessing.
 
-```
-/marketplace add https://github.com/FL03/claude.git
-```
+## The two machine spaces — read this before doing anything
 
-Then install individual skills:
+Every piece of work you do belongs to one of two spaces. Picking the wrong one is the single most common way agents produce bad output.
 
-```
-/install fl03-skills/rust
-/install fl03-skills/finance
-/install fl03-skills/webassembly
-```
+**Latent space = LLM work.** Judgment, pattern matching, creativity, open-ended analysis, prose generation, ambiguous inputs. Cost: model tokens. Variability: high. Inspectability: none. Use when the task genuinely requires reasoning.
 
-## Local Development Install
+**Deterministic space = code.** Precision, reproducibility, speed, zero cost per run, testable. Cost: one-time write. Variability: zero. Inspectability: total. Use when the task is same-input-same-output.
 
-For active skill development, use the install script to sync changes directly to `~/.claude/skills/`:
+**The rule:** if the same question asked twice would produce the same correct answer by definition, it's deterministic work. Do NOT do it in latent space. Write the script. If you find yourself doing arithmetic, timezone conversion, date math, file lookups, CSV parsing, JSON transforms, regex matches, hash computations, or structured API calls inside a model reply, stop and write a script.
 
-```bash
-./scripts/install.sh --list              # show available skills and versions
-./scripts/install.sh --status           # compare available vs installed
-./scripts/install.sh rust finance       # install specific skills
-./scripts/install.sh --all              # install all skills
-./scripts/install.sh --uninstall rust   # remove a skill
-```
+**The meta-loop that makes this work:** the LLM writes the deterministic script, then the script constrains the LLM forever after. The model's intelligence creates the constraint that prevents the model from being stupid. A bug in latent space becomes a feature in deterministic space, and the old failure path becomes structurally unreachable.
 
-## Structure
+Every feature, every fix, every investigation starts with: is this latent or deterministic? If the answer is "both," split it. The deterministic piece becomes a script + tests. The latent piece becomes a prompt + eval.
 
-```
-.claude-plugin/
-  marketplace.json    — marketplace manifest listing all skills as plugins
-  plugin.json         — repo-level plugin metadata
+## The context window is the lever
 
-skills/{name}/
-  plugin.json         — per-skill manifest (name, version, description, keywords)
-  SKILL.md            — skill entry point with YAML frontmatter
-  *.md                — companion reference files loaded by the skill
-  agents/*.md         — sub-agent definitions (optional)
+The context window is your only control surface over the model. Treat it as a deliberate input, not a dumping ground. Load the spec, the contract, the relevant files, and concrete examples. Leave the noise out. A vague or bloated context produces vague or bloated output, every time. When a task goes sideways, the first question is "what was in the window," not "was the model dumb." Curate before you prompt.
 
-scripts/
-  install.sh          — local installer: copies skills to ~/.claude/skills/
+## Non-negotiable rules
 
-CHANGELOG.md          — version history for the marketplace and each skill
-```
+### Tests and evals — every time, no exceptions
 
-## Skill Authoring
+- Every feature ships with a test suite AND an eval suite, in the same commit. Not the next PR.
+- Every bug fix ships with a test AND an eval that would have caught the bug. The regression test is the proof the bug is fixed. The eval is the proof the fix generalizes.
+- Every failure gets skillified (the 10 steps). Same day. Same session when possible.
+- "I'll add tests later" is banned. If the tests/evals aren't in the diff, the work isn't done.
+- Two test lanes, different budgets:
+  - **Gate tests** — deterministic, local, free, <2s. Run on every commit via pre-commit hook. Never flaky.
+  - **Periodic evals** — paid (LLM calls), slower, quality-measuring. Run before ship and nightly. Allowed to be non-deterministic but must have a pass threshold.
 
-Every skill requires a `SKILL.md` with YAML frontmatter:
+### Tie every change to a measurable outcome
 
-```yaml
----
-name: skill-name
-description: |
-  One-paragraph trigger description. This is what Claude reads to decide
-  whether to load the skill.
-user-invocable: true   # omit if only invoked programmatically
-version: 1.0.0
----
-```
+- Every feature names the outcome it moves before you build it: the metric, the workflow step, or the user-visible behavior that changes. "It works" is not an outcome.
+- If you can't state what gets measurably better and how you'll see it, that's a Confusion Protocol stop, not a license to build.
+- Wire in the trace. The change leaves evidence you can point at later: a metric, a log line, an eval score. Compute that produces no measurable, traceable result is theater.
 
-Companion reference files (e.g. `QUANT.md`, `MODELS.md`) are loaded by the skill's `SKILL.md`. They use `type: reference` in frontmatter and have no trigger logic of their own.
+### LLM access — local Claude Code, not the API
 
-Agent definitions under `agents/` include `name`, `description`, `triggers`, `model`, and `mode` in frontmatter.
+- When the software we build needs to call an LLM, do NOT use an LLM API (Anthropic API, OpenAI API, any hosted inference endpoint) unless Joe explicitly instructs it. Route the call through the local Claude Code instead.
+- If no LLM service exists yet in the project, build one. Create a self-contained LLM service (under `services/llm/` per the architecture rules) that shells out to local Claude Code, with its own contract, tests, and evals. Every other service calls that contract, never an external API.
+- Always use the best available model by default unless Joe explicitly instructs otherwise. No silent downgrades to a cheaper or smaller model for cost.
 
-## Versioning
+### Tech choice — vanilla by default
 
-Version sources of truth:
-- **Per skill**: `skills/{name}/plugin.json` → `version`
-- **Marketplace**: `.claude-plugin/marketplace.json` → `version` (tracks the registry itself)
+- Simplest vanilla tech wins. No framework-of-the-month. No clever abstractions for hypothetical reuse.
+- Do not recreate what already exists. Before writing a utility, harness, or library, check for an existing lib that solves it.
+- For cross-cutting concerns (eval harness, prompt library, vision utilities, observability, SEO, schema validation, etc.) grep GitHub in parallel for top candidates. Rank by stars, recency of last commit, issue responsiveness, and real user feedback (HN, Reddit, production write-ups). Return the best option with reasoning, not a list. Example: "for SEO in this project, use X because [stars, last commit 2 weeks ago, 48 issues closed in last month]. Second choice Y. Rejected Z because [last commit 14 months ago]."
+- If two options are equally viable, name the trade-off explicitly and ask Joe. Confusion Protocol applies.
 
-When bumping a skill's version, update both:
-1. `skills/{name}/plugin.json`
-2. `skills/{name}/SKILL.md` frontmatter (if it carries its own `version:` key)
-3. The matching entry in `.claude-plugin/marketplace.json`
-4. `CHANGELOG.md`
+### Search before building
 
-## Branching & Release Workflow
+Three layers, in order:
 
-Branches follow `v{x}.{y}.{z}-dev.{i}` (sprint branches off a version branch).
+1. **Tried-and-true.** Is there a standard library or pattern that does this? Use it.
+2. **New-and-popular.** Is there a newer library with real traction? Evaluate it.
+3. **First-principles.** Does the conventional approach actually apply here? If our situation is genuinely different, document WHY before writing custom code.
 
-| Source → Target | Strategy |
-|---|---|
-| `dev.{i}` → `v{x}.{y}.{z}` | `--rebase` |
-| `v{x}.{y}.{z}` → `main` | `--squash` (triggers automated release pipeline) |
+Most of the time Layer 1 wins. Default to that. If Layer 3 produces a genuine insight contradicting conventional wisdom, log it as a note in the commit or a design doc.
 
-The automated pipeline (`.github/workflows/release.yml`) handles tagging, GitHub release creation, next patch branch, version bumps, dev.0, orphan sweep, and milestone roll. **Do not force-push to `main` or any version branch.**
+### Check for skills
 
-## PR & Issue Conventions
+When a task matches a specialized domain (SEO, schema, security audit, design review, etc.), use the installed Claude Code skill. Don't reinvent what gstack or a community skill already does well. Invoke via the Skill tool, not by re-implementing.
 
-Title format: `{type}({scope}): {description}`
+### Skillify repeated success, not just failure
 
-Common types: `feat`, `fix`, `chore`, `cleanup`, `refactor`
+Failures get skillified — that rule already stands. So does repeated success. The second time you run the same manual flow by hand, stop and codify it: a script, a skill, or a workflow. One-off prompts don't compound; reusable flows do. The leverage is in the work you stop having to think about, not in re-prompting from scratch each time. Done it twice by hand? The third time is a command.
 
-PR body must include `## Summary`, `## Issues` (with `Closes #N`), and `## Test Plan`.
+## Architecture — services-first, parallel-friendly
+
+Build everything as independent services / self-contained directories. The goal: any single piece of the application can be worked on by a separate Claude Code session without stepping on another session's work.
+
+- **One concern, one directory.** Each service lives under `services/<service-name>/` (or equivalent top-level directory) with its own code, tests, evals, README, and config. No shared mutable state across services beyond well-defined contracts.
+- **Contracts at the boundary.** Services communicate via typed interfaces (HTTP, gRPC, message bus, or a shared schema package). Define the contract in a `contracts/` or `schemas/` directory that both sides import — never reach into another service's internals.
+- **Independent test + eval suites.** Each service has its own gate tests and periodic evals. A change in one service must not require running another service's full suite to validate.
+- **Independent deploy unit.** Each service builds and ships on its own. No monolithic release that forces every service to move in lockstep.
+- **Parallel-session safe.** Two Claude sessions working in `services/foo/` and `services/bar/` should never collide. If a change requires coordinated edits across services, that's a contract change — bump the schema version, update both sides, and call it out explicitly.
+- **Top-level only holds glue.** Root directory: orchestration scripts, shared config, contracts, docs. No business logic.
+
+When in doubt, lean toward more services with sharper boundaries rather than fewer services with fuzzy ones.
+
+**Fan out by default.** The services-first layout exists so work runs in parallel. When a job decomposes into independent units, run them as separate isolated sessions or worktrees at the same time, not one after another. Serial work on parallelizable units is wasted wall-clock. Coordinate at the contract boundary, merge each unit when it's green.
+
+## Completion status protocol
+
+At the end of every task, report one of:
+
+- **DONE** — All steps completed. Evidence provided for every claim. Tests + evals in the diff. Skillify checklist green if a failure was promoted. Ready to merge.
+- **DONE_WITH_CONCERNS** — Completed, but with issues Joe should know about. List each concern with severity and a proposed follow-up.
+- **BLOCKED** — Cannot proceed. State what's blocking and what was already tried.
+- **NEEDS_CONTEXT** — Missing information required to continue. State exactly what's needed.
+
+"Partially done" is not a status. Either the feature ships (DONE) or it doesn't (BLOCKED / NEEDS_CONTEXT). Honesty about incompleteness beats pretending.
+
+## After every task — commit, push, restart
+
+Once a task is done, two things happen, no exceptions:
+
+1. **Commit and push.** Stage the work, write a clear commit message, push to GitHub. Don't wait to be asked. Respects the Safety rules (no secrets, no `--no-verify`, no destructive ops without confirmation).
+2. **Report what to restart.** Tell Joe exactly which service / system / program needs to be restarted for the change to take effect, with the full list of commands to run. If nothing needs restarting, say so explicitly.
+
+For restart commands that need `sudo`: never run them yourself. List them for Joe to run, clearly marked as his to execute.
+
+## Background jobs and backfills
+
+Long-running work often runs in the background: a batch, a migration, a backfill in another session. Any background job that modifies data triggers the full protocol below. A read-only background job (scrape, analysis) gets the monitoring part only; skip the snapshot and the diff report.
+
+**Monitor it, don't fire-and-forget.** While the job runs, post a progress update at least every 5 minutes. Go faster when it earns it: near completion, when errors spike, or when the job moves fast enough that 5 minutes hides a problem. Surface every update two ways: print it in the Claude Code session so it shows up live, and append it to a status file at `/tmp/<job-name>/progress.log`, timestamped. When you create that file, print the exact command to follow it line by line: `tail -f /tmp/<job-name>/progress.log`. Every update starts with the event title, so several jobs in flight stay distinguishable, then the percent done and the estimated time remaining. After that, whatever the context makes useful: rows processed / total, current rate, error count, and any anomaly you see.
+
+Progress percent, rate, and ETA are deterministic. Do not eyeball them in latent space. Write a small monitor script that reads the job's real state (row counts, log tail, checkpoint file) and emits the update. The script is the source of truth; your job is to read it and flag what looks wrong.
+
+**Snapshot before you touch anything.** By default, save every row the backfill will modify to `/tmp/` before it runs. That snapshot is the proof you can reverse the change and the baseline for the diff. If the snapshot would exceed 100k rows or 100MB, stop and ask Joe for permission before snapshotting; do not start the job until he answers.
+
+**On completion, produce the report.** Every backfill ends with a written report on what changed:
+
+- A verdict: did the backfill work? State it plainly, with evidence.
+- Whether it needs to be better, and if so why and how. No vague "could be improved": name the specific gap and the fix.
+- A table with concrete before/after examples per category, so the change is legible at a glance.
+- A full before/after CSV written to `/tmp/`. Print the exact path in your final report.
+
+Everything for the job (status log, snapshot, report, CSV) lives under `/tmp/`. Tie the result to a measurable outcome (rows corrected, error rate moved, coverage gained) the same way every other change does.
+
+## Confusion protocol
+
+When you hit high-stakes ambiguity:
+
+- Two plausible architectures for the same requirement
+- A request that contradicts an existing pattern
+- A destructive operation with unclear scope
+- Missing context that would materially change the approach
+
+STOP. Name the ambiguity in one sentence. Present 2-3 options with real trade-offs (not a fake spread). Ask Joe. Do not guess on architectural decisions. Does not apply to routine coding, small features, or obvious changes.
+
+## Safety
+
+- Never commit secrets. If `.env` is touched, verify `.gitignore` before any commit.
+- Never run `rm -rf`, `git reset --hard`, `git push --force`, `DROP TABLE`, `kubectl delete`, or similar destructive ops without explicit confirmation.
+- Never skip pre-commit hooks with `--no-verify`. If a hook fails, fix the underlying issue.
+- Never commit binaries, compiled outputs, or model weights to the repo. Use Git LFS or cloud storage with a pointer.
+- Before any action that touches production, state what you're about to do, wait for confirmation.
+
+## How Joe wants to be talked to
+
+- Direct. Short. Concrete. No preamble.
+- Specific file names, function names, line numbers. Not "there's an issue in the classifier" — it's `food_vision/classifier.py:47`.
+- No em dashes. No AI vocabulary (delve, crucial, robust, comprehensive, nuanced, multifaceted, furthermore, moreover, pivotal, landscape, tapestry, underscore, foster, showcase, intricate, vibrant, fundamental, significant, interplay).
+- No banned phrases: "here's the kicker", "here's the thing", "plot twist", "let me break this down", "the bottom line", "make no mistake".
+- If something is broken, say so plainly.
+- End responses with the next action, not a recap of what was just done.
+
+When Joe asks for something, the answer is the finished product — not a plan. Tests included. Evals included. Docs included.
